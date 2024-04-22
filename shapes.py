@@ -27,6 +27,16 @@ def generates_rays(polygon, step, traversal = 'vertical'):
     return lines
 
 
+def intersection(polygon, line):
+    line_str = LineString(line)
+    polygon = Polygon(polygon)
+    intersection_points = []
+    intersection = polygon.intersection(line_str)
+    intersection_points.append(intersection)
+    points = list(intersection.coords)
+    return points 
+
+
 def plot_lines(plot, lines):
     for i in range(lines.shape[2]):
         line = lines[:, :, i]
@@ -34,6 +44,10 @@ def plot_lines(plot, lines):
         y = [point[1] for point in line]
         plot.plot(x, y, color = 'b')
 
+
+def plot_intersection(plot, intersects):
+    for point in intersects:
+        ax.scatter(*zip(*point), color = 'r', s = 15)
 
 global_pol = [[0,0], [20,300], [300,350], [320,0]]
 global_pol =np.array(global_pol)
@@ -47,16 +61,16 @@ polygons = {
 
 lines = generates_rays(global_pol, 10, traversal='horizontal')
 
-polygon = patches.Polygon(polygons['glob_pol'], fill=False)
-
-line_str = []
+intersect_points = []
 for i in range(lines.shape[2]):
-    line_str.append(LineString(lines[:, :, i]))
+    intersect_points.append(intersection(polygons['glob_pol'], lines[:, :, i]))
+
+polygon = patches.Polygon(polygons['glob_pol'], fill=False)
 
 fig, ax = plt.subplots()
 ax.add_patch(polygon)
 plot_lines(ax, lines)
-
+plot_intersection(ax, intersect_points)
 plt.show()
 
 # print(polygons['a_pol'])
