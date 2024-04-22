@@ -22,10 +22,35 @@ def draw_polygon(vertices, borders):
     plt.show()
 
 
-H = 300
-W = 300
+H = 355
+W = 355
+uav = 2
+polygon = [[0,0], [20,300], [300,350], [320,0]]
+n = 320/10
+lines = np.zeros([2,2,int(n)])
+step = 10
+# lines[:, 0, 0] = np.arange(lines.shape[0]) * step
+# for i in range(lines.shape[2]):
+#     lines[i, :, 0]
+# draw_polygon(polygon, (H, W))
 
-polygon = generate_random_convex_polygon(0, H, 0, W)
 
 
-draw_polygon(polygon, (H, W))
+for i in range(lines.shape[2]):
+    lines[:, :, i][:, 0] = i*step
+    lines[1, 1, i] = 300
+
+fig, ax = plt.subplots()
+polygon = patches.Polygon(polygon, fill=True)
+ax.add_patch(polygon)
+ax.set_xlim(-5, W+5)
+ax.set_ylim(-5, H+5)
+
+for i in range(lines.shape[2]):
+    line = lines[:, :, i]
+    x = [point[0] for point in line]
+    y = [point[1] for point in line]
+    print(line)
+    ax.plot(x, y, color = 'r')
+
+plt.show()
