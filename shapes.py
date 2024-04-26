@@ -187,38 +187,12 @@ Obstacles where their boundary intersects with the inner boundary of the ﬁeld.
 Returns a new list with matching polygons and removes ones from the source list.
 '''
 def b_class(global_poly, polygons, threshold):
-    # used = []
     output = []
-    # global_poly_size = len(global_poly.points)
-    # for k in range(len(polygons)):
-    #     for i in range(len(polygons[k].points)):
-    #         for j in range(global_poly_size):
-    #             line_point1 = global_poly.points[(j+1) % global_poly_size]
-    #             line_point0 = global_poly.points[j % global_poly_size]
-    #             point = polygons[k].points[i]
-    #             dist = distance_point_to_line(point[0], 
-    #                                         point[1], 
-    #                                         line_point0[0], 
-    #                                         line_point0[1], 
-    #                                         line_point1[0], 
-    #                                         line_point1[1])
-    #             if dist < threshold:
-    #                 print(polygons[i])
-    #                 output.append(polygons.pop(k))
     for i in range(len(polygons)):
         if closedPolygons(global_poly, polygons[i], 5):
             output.append(polygons.pop(i))
     return output
-    # for i in range(len(polygons)):
-    #     dist_x, dist_y = min_distance(global_poly, polygons[i])
-    #     print(dist_x, dist_y)
-    #     if dist_x <= threshold and dist_y <= threshold:
-    #         print(polygons[i])
-    #         output.append(polygons.pop(i))
-    #         used.append(i)
-    # for index in reversed(used):
-    #     del polygons[index]
-    # return output  
+
 
 def classification(global_poly, lines, polygons, step, traversal='vertical'):
     polygons = polygons.copy()
@@ -226,7 +200,6 @@ def classification(global_poly, lines, polygons, step, traversal='vertical'):
     classified = {'a': [], 'b': [], 'c': [], 'd': []}
     
     classified['a'] = a_class(polygons, lines, threshold, traversal)
-    # classified['c'] = c_class(polygons, threshold, traversal) 
     polygons = find_and_combine_close_polygons(polygons, threshold)
     classified['b'] = b_class(global_poly, polygons, threshold)
     classified['d'] = polygons
@@ -304,20 +277,20 @@ fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
 ax.add_patch(patches.Polygon(glob_poly.points, fill=False))
 
-for poly in polygons:
-    ax.add_patch(patches.Polygon(poly.points, color = 'b', fill=False))
+# for poly in polygons:
+#     ax.add_patch(patches.Polygon(poly.points, color = 'b', fill=False))
 
-# for elem in marked_obstacles['a']:
-#     ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
+for elem in marked_obstacles['a']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
 
-# for elem in marked_obstacles['b']:
-#     ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=True))
+for elem in marked_obstacles['b']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=True))
 
-# for elem in marked_obstacles['c']:
-#     ax.add_patch(patches.Polygon(elem.points, color = 'b', fill=True))
+for elem in marked_obstacles['c']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'b', fill=True))
 
-# for elem in marked_obstacles['d']:
-#     ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
+for elem in marked_obstacles['d']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
 
 plot_lines(ax, lines)
 plot_intersection(ax, intersect_points)
