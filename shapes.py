@@ -272,10 +272,10 @@ b1_poly = MyPolygon([[50,5],
                      [75,30], 
                      [75,5]])
 
-b2_poly = MyPolygon([[53,5], 
-                     [53,30], 
+b2_poly = MyPolygon([[78,5], 
                      [78,30], 
-                     [78,5]])
+                     [103,30], 
+                     [103,5]])
                     
 d_poly = MyPolygon([[200,100], 
                     [200,125], 
@@ -294,6 +294,9 @@ intersect_points = []
 for i in range(lines.shape[2]):
     intersect_points.append(intersection(glob_poly.points, lines[:, :, i]))
 
+for i in range(lines.shape[2]):
+    lines[:, :, i][0] = intersect_points[i][0]
+    lines[:, :, i][1] = intersect_points[i][1]
 
 marked_obstacles = classification(glob_poly, lines, polygons, step=10, traversal='vertical')
 
@@ -301,17 +304,20 @@ fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
 ax.add_patch(patches.Polygon(glob_poly.points, fill=False))
 
-for elem in marked_obstacles['a']:
-    ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
+for poly in polygons:
+    ax.add_patch(patches.Polygon(poly.points, color = 'b', fill=False))
 
-for elem in marked_obstacles['b']:
-    ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=True))
+# for elem in marked_obstacles['a']:
+#     ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
 
-for elem in marked_obstacles['c']:
-    ax.add_patch(patches.Polygon(elem.points, color = 'b', fill=True))
+# for elem in marked_obstacles['b']:
+#     ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=True))
 
-for elem in marked_obstacles['d']:
-    ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
+# for elem in marked_obstacles['c']:
+#     ax.add_patch(patches.Polygon(elem.points, color = 'b', fill=True))
+
+# for elem in marked_obstacles['d']:
+#     ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
 
 plot_lines(ax, lines)
 plot_intersection(ax, intersect_points)
@@ -319,3 +325,4 @@ plot_intersection(ax, intersect_points)
 ax.set_xlim([0, 360])
 ax.set_ylim([0, 360])
 plt.show()
+plt.legend()
