@@ -82,6 +82,7 @@ def min_distance(poly1, poly2):
 '''
 An obstacle that due to size and conﬁguration in relation 
 to the driving direction does not affect the coverage plan generation.
+Returns a new list with no polygons of this class.
 '''
 def a_class(polygons, lines, threshold, traversal='vertical'):
     index = 0
@@ -100,6 +101,20 @@ def a_class(polygons, lines, threshold, traversal='vertical'):
             ...
         index += 1
     return output
+
+
+def point_filling(polygon):
+    size =  polygon.points.shape[0]
+    new_points = []
+    for i in range(size):
+        p2 = polygon.points[(i+1) % size]
+        p0 = polygon.points[i % size]
+        new_points.append((p2 + p0)/2)
+    new_points = np.array(new_points)
+    result = np.zeros([len(polygon.points) + len(new_points), 2])
+    result[::2] = polygon.points
+    result[1::2] = new_points
+    return MyPolygon(result)
 
 
 def combine(poly1, poly2):
@@ -126,7 +141,9 @@ def find_and_combine_close_polygons(polygons, threshold):
     #         output.append(polygons[i])
     # print(output)
     # return output.append(combined)
-    polygons = polygons.copy()
+
+    polygons = [point_filling(i) for i in polygons]
+
     used = []
     output = []
     uav_size = 10
@@ -137,20 +154,19 @@ def find_and_combine_close_polygons(polygons, threshold):
                 if i != j:
                     dist_x, dist_y = min_distance(polygons[i], polygons[j])
                     if dist_x <= threshold and dist_y <= 1.5*uav_size:
-                        # print(dist_x, dist_y)
                         output.append(combine(polygons[i], polygons[j]))
                         used.append(i)
                         used.append(j)
-                        print(used)
-    
-    return polygons
 
+    residue = [el for i, el in enumerate(polygons) if i not in used]
+    return residue+output
 
 
 '''                 
 Obstacles where the minimum distance between another obstacle is less than the operating width,
 w. In this case both obstacles are classiﬁed as of type C and a subroutine is used to ﬁnd the minimal bounding polygon (MBP) to
 enclose these obstacles.
+Returns a new list with combined polygons of this class.
 '''
 def c_class(polygons, threshold, traversal='vertical'):
     return find_and_combine_close_polygons(polygons, threshold)
@@ -214,7 +230,7 @@ for i in range(lines.shape[2]):
 
 
 marked_obstacles = classification(glob_poly, lines, polygons, step=10, traversal='vertical')
-print(marked_obstacles)
+# print(marked_obstacles)
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
 ax.add_patch(patches.Polygon(glob_poly.points, fill=False))
