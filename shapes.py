@@ -79,6 +79,13 @@ def min_distance(poly1, poly2):
     return min_dist_x, min_dist_y
 
 
+def distance_point_to_line(x, y, x1, y1, x2, y2):
+    a = y2 - y1
+    b = x1 - x2
+    c = x2*y1 - x1*y2
+    distance = abs(a*x + b*y + c) / math.sqrt(a**2 + b**2)
+    return distance
+
 '''
 An obstacle that due to size and conﬁguration in relation 
 to the driving direction does not affect the coverage plan generation.
@@ -156,23 +163,62 @@ Returns a new list with combined polygons of this class.
 def c_class(polygons, threshold, traversal='vertical'):
     return find_and_combine_close_polygons(polygons, threshold)
 
+
+def closedPolygons(global_poly, poly, threshold):
+    min_distances = []
+    global_poly_size = len(global_poly.points)
+    for i in range(len(poly.points)):
+        for j in range(global_poly_size):
+            line_point1 = global_poly.points[(j+1) % global_poly_size]
+            line_point0 = global_poly.points[j % global_poly_size]
+            point = poly.points[i]
+            dist = distance_point_to_line(point[0], 
+                                          point[1], 
+                                          line_point0[0], 
+                                          line_point0[1], 
+                                          line_point1[0], 
+                                          line_point1[1]) 
+            min_distances.append(dist)
+    min_dist = min(min_distances)
+    return min_dist <= threshold
+
 '''                 
 Obstacles where their boundary intersects with the inner boundary of the ﬁeld.
-Removes matching polygons from the source list.
+Returns a new list with matching polygons and removes ones from the source list.
 '''
 def b_class(global_poly, polygons, threshold):
     # used = []
-    # output = []
-
+    output = []
+    # global_poly_size = len(global_poly.points)
+    # for k in range(len(polygons)):
+    #     for i in range(len(polygons[k].points)):
+    #         for j in range(global_poly_size):
+    #             line_point1 = global_poly.points[(j+1) % global_poly_size]
+    #             line_point0 = global_poly.points[j % global_poly_size]
+    #             point = polygons[k].points[i]
+    #             dist = distance_point_to_line(point[0], 
+    #                                         point[1], 
+    #                                         line_point0[0], 
+    #                                         line_point0[1], 
+    #                                         line_point1[0], 
+    #                                         line_point1[1])
+    #             if dist < threshold:
+    #                 print(polygons[i])
+    #                 output.append(polygons.pop(k))
+    for i in range(len(polygons)):
+        if closedPolygons(global_poly, polygons[i], 5):
+            output.append(polygons.pop(i))
+    return output
     # for i in range(len(polygons)):
     #     dist_x, dist_y = min_distance(global_poly, polygons[i])
+    #     print(dist_x, dist_y)
     #     if dist_x <= threshold and dist_y <= threshold:
-    #         output.append(combine(polygons[i], polygons[j]))
+    #         print(polygons[i])
+    #         output.append(polygons.pop(i))
     #         used.append(i)
     # for index in reversed(used):
     #     del polygons[index]
-    # return output 
-    ...   
+    # return output  
 
 def classification(global_poly, lines, polygons, step, traversal='vertical'):
     polygons = polygons.copy()
@@ -180,9 +226,10 @@ def classification(global_poly, lines, polygons, step, traversal='vertical'):
     classified = {'a': [], 'b': [], 'c': [], 'd': []}
     
     classified['a'] = a_class(polygons, lines, threshold, traversal)
-    classified['c'] = c_class(polygons, threshold, traversal) 
-    # classified['b'] = b_class(polygons, lines, traversal)
-    # classified['d'][0] = polygons
+    # classified['c'] = c_class(polygons, threshold, traversal) 
+    polygons = find_and_combine_close_polygons(polygons, threshold)
+    classified['b'] = b_class(global_poly, polygons, threshold)
+    classified['d'] = polygons
     
     return classified
 
@@ -230,11 +277,6 @@ b2_poly = MyPolygon([[53,5],
                      [78,30], 
                      [78,5]])
                     
-# b2_poly = MyPolygon([[233,200], 
-#                      [233,225], 
-#                      [258,225], 
-#                      [258,200]])
-
 d_poly = MyPolygon([[200,100], 
                     [200,125], 
                     [225,125], 
