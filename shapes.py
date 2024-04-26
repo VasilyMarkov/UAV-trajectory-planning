@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import chain
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
@@ -73,7 +74,6 @@ def min_distance(poly1, poly2):
                               poly1.points[i, 1]-poly2.points[j, 1]))
             dist_x.append(np.abs(poly1.points[i, 0]-poly2.points[j, 0]))
             dist_y.append(np.abs(poly1.points[i, 1]-poly2.points[j, 1]))
-    min_dist = np.min(np.array(dist))
     min_dist_x = np.min(np.array(dist_x))
     min_dist_y = np.min(np.array(dist_y))
     return min_dist_x, min_dist_y
@@ -87,6 +87,7 @@ Returns a new list with no polygons of this class.
 def a_class(polygons, lines, threshold, traversal='vertical'):
     index = 0
     output = []
+    threshold = 2
     for poly in polygons:
         if traversal == 'vertical':
             diffs_min = np.abs(poly.min_x - lines[0,0,:])
@@ -126,22 +127,6 @@ def combine(poly1, poly2):
 
 
 def find_and_combine_close_polygons(polygons, threshold):
-    # combined_poly = []
-    # output = []
-    # for i in range(len(polygons)):
-    #     combined = False
-    #     for j in range(1, len(polygons)):
-    #         if min_distance(polygons[i], polygons[j]) < threshold:
-    #             poly = combine(polygons.pop(i), polygons.pop(j))
-    #             # print(poly)
-    #             combined_poly.append(poly)
-                
-    #             combined = True
-    #     if combined == False:
-    #         output.append(polygons[i])
-    # print(output)
-    # return output.append(combined)
-
     polygons = [point_filling(i) for i in polygons]
 
     used = []
@@ -171,15 +156,34 @@ Returns a new list with combined polygons of this class.
 def c_class(polygons, threshold, traversal='vertical'):
     return find_and_combine_close_polygons(polygons, threshold)
 
+'''                 
+Obstacles where their boundary intersects with the inner boundary of the ﬁeld.
+Removes matching polygons from the source list.
+'''
+def b_class(global_poly, polygons, threshold):
+    # used = []
+    # output = []
+
+    # for i in range(len(polygons)):
+    #     dist_x, dist_y = min_distance(global_poly, polygons[i])
+    #     if dist_x <= threshold and dist_y <= threshold:
+    #         output.append(combine(polygons[i], polygons[j]))
+    #         used.append(i)
+    # for index in reversed(used):
+    #     del polygons[index]
+    # return output 
+    ...   
 
 def classification(global_poly, lines, polygons, step, traversal='vertical'):
     polygons = polygons.copy()
     threshold = 10
     classified = {'a': [], 'b': [], 'c': [], 'd': []}
+    
     classified['a'] = a_class(polygons, lines, threshold, traversal)
-    # classified['b'].append(b_class(polygons, lines, traversal)) 
     classified['c'] = c_class(polygons, threshold, traversal) 
-    # classified['d'].append(d_class(polygons, lines, traversal)) 
+    # classified['b'] = b_class(polygons, lines, traversal)
+    # classified['d'][0] = polygons
+    
     return classified
 
 
@@ -188,7 +192,7 @@ def plot_lines(plot, lines):
         line = lines[:, :, i]
         x = [point[0] for point in line]
         y = [point[1] for point in line]
-        plot.plot(x, y, color = 'b')
+        plot.plot(x, y, color = 'black')
 
 
 def plot_intersection(plot, intersects):
@@ -206,21 +210,41 @@ a_poly = MyPolygon([[105,100],
                     [105,140], 
                     [107,120]])
 
-b_poly = MyPolygon([[200,200], 
-                    [200,225], 
-                    [225,225], 
-                    [225,200]])
+c1_poly = MyPolygon([[200,200], 
+                     [200,225], 
+                     [225,225], 
+                     [225,200]])
 
-c_poly = MyPolygon([[233,200], 
-                    [233,225], 
-                    [258,225], 
-                    [258,200]])
+c2_poly = MyPolygon([[233,200], 
+                     [233,225], 
+                     [258,225], 
+                     [258,200]])
+                    
+b1_poly = MyPolygon([[50,5], 
+                     [50,30], 
+                     [75,30], 
+                     [75,5]])
+
+b2_poly = MyPolygon([[53,5], 
+                     [53,30], 
+                     [78,30], 
+                     [78,5]])
+                    
+# b2_poly = MyPolygon([[233,200], 
+#                      [233,225], 
+#                      [258,225], 
+#                      [258,200]])
+
+d_poly = MyPolygon([[200,100], 
+                    [200,125], 
+                    [225,125], 
+                    [225,100]])
 
 
-c_poly.move_y(12)
-c_poly.move_x(-6)
+c1_poly.move_y(12)
+c2_poly.move_x(-6)
 a_poly.move_x(5)
-polygons = [a_poly, b_poly, c_poly]
+polygons = [a_poly, c1_poly, c2_poly, b1_poly, b2_poly, d_poly]
 
 lines = generates_rays(glob_poly.points, 10, traversal='vertical')
 
@@ -230,15 +254,23 @@ for i in range(lines.shape[2]):
 
 
 marked_obstacles = classification(glob_poly, lines, polygons, step=10, traversal='vertical')
-# print(marked_obstacles)
+
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
 ax.add_patch(patches.Polygon(glob_poly.points, fill=False))
 
-for values in marked_obstacles.values():
-    for obstacles in values:
-        ax.add_patch(patches.Polygon(obstacles.points, color = 'black', fill=True))
-    
+for elem in marked_obstacles['a']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
+
+for elem in marked_obstacles['b']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=True))
+
+for elem in marked_obstacles['c']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'b', fill=True))
+
+for elem in marked_obstacles['d']:
+    ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
+
 plot_lines(ax, lines)
 plot_intersection(ax, intersect_points)
 
