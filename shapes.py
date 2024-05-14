@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from classification import *
+from decomposition import create_slices
 
 def plot_intersection(plot, intersects):
     for point in intersects:
         ax.scatter(*zip(*point), color = 'r', s = 15)
+
 
 glob_poly = MyPolygon([[0,0], 
                        [20,300], 
@@ -60,12 +62,18 @@ for i in range(lines.shape[2]):
 
 marked_obstacles = classification(glob_poly, lines, polygons, step=10, traversal='vertical')
 
+slices = np.array(create_slices(glob_poly, polygons))
+
+# intersect_slices= []
+# for i in range(lines.shape[2]):
+#     intersect_slices.append(intersection(glob_poly.points, slices[:, :, i]))
+
+
+print(slices.shape)
+
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
 ax.add_patch(patches.Polygon(glob_poly.points, fill=False))
-
-# for poly in polygons:
-#     ax.add_patch(patches.Polygon(poly.points, color = 'b', fill=False))
 
 for elem in marked_obstacles['a']:
     ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
