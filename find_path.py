@@ -41,7 +41,7 @@ H = 355
 W = 355
 uav = 2
 polygon = [[0,0], [20,300], [300,350], [320,0]]
-a_pol = [[100,100], [95,120], [100,140], [105,120]]
+a_pol = [[105,100], [102,120], [105,140], [108,120]]
 n = 320/10
 lines = np.zeros([2,2,int(n)])
 step = 10
@@ -58,6 +58,12 @@ for i in range(lines.shape[2]):
 intersects = []
 for line in line_str:
     intersects.append(intersectLineWithPolygon(polygon, line))
+
+a_intersects = []
+for line in line_str:
+    a_intersects.append(intersectLineWithPolygon(a_pol, line))
+a_intersects = list(filter(None, a_intersects))
+print(a_intersects)
 
 fig, ax = plt.subplots()
 polygon = patches.Polygon(polygon, fill=False)
@@ -76,5 +82,8 @@ for i in range(lines.shape[2]):
 
 for point in intersects:
     ax.scatter(*zip(*point), color = 'r', s = 15)
-    
+
+for point in a_intersects:
+    ax.scatter(*zip(*point), color = 'r', s = 15)
+
 plt.show()
