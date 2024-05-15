@@ -27,7 +27,12 @@ c2_poly = MyPolygon([[233,200],
                      [233,225], 
                      [258,225], 
                      [258,200]])
-                    
+
+c3_poly = MyPolygon([[133,200], 
+                     [133,225], 
+                     [158,225], 
+                     [158,200]])          
+
 b1_poly = MyPolygon([[50,5], 
                      [50,30], 
                      [75,30], 
@@ -48,7 +53,7 @@ c1_poly.move_y(12)
 c2_poly.move_x(-6)
 a_poly.move_x(-45)
 a_poly.move_y(40)
-polygons = [a_poly, c1_poly, c2_poly, b1_poly, b2_poly, d_poly]
+polygons = [a_poly, c1_poly, c2_poly, c3_poly, b1_poly, b2_poly, d_poly]
 
 lines = generates_rays(glob_poly.points, 10, traversal='vertical')
 
@@ -62,14 +67,15 @@ for i in range(lines.shape[2]):
 
 marked_obstacles = classification(glob_poly, lines, polygons, step=10, traversal='vertical')
 
-slices = np.array(create_slices(glob_poly, polygons))
+slices = np.array(create_slices(glob_poly, marked_obstacles['d']))
 
-# intersect_slices= []
-# for i in range(lines.shape[2]):
-#     intersect_slices.append(intersection(glob_poly.points, slices[:, :, i]))
+intersect_slices = []
+for i in range(slices.shape[2]):
+    intersect_slices.append(intersection(glob_poly.points, slices[:, :, i]))
 
-
-print(slices.shape)
+for i in range(slices.shape[2]):
+    slices[:, :, i][0] = intersect_slices[i][0]
+    slices[:, :, i][1] = intersect_slices[i][1]
 
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
@@ -87,7 +93,8 @@ for elem in marked_obstacles['c']:
 for elem in marked_obstacles['d']:
     ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
 
-plot_lines(ax, lines)
+plot_lines(ax, lines, 'black', 1)
+plot_lines(ax, slices, 'blue', 3)
 plot_intersection(ax, intersect_points)
 
 ax.set_xlim([0, 360])

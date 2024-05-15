@@ -205,11 +205,11 @@ def classification(global_poly, lines, polygons, step, traversal='vertical'):
     return classified
 
 
-def plot_lines(plot, lines):
+def plot_lines(plot, lines, in_color, width):
     for i in range(lines.shape[2]):
         line = lines[:, :, i]
         x = [point[0] for point in line]
         y = [point[1] for point in line]
-        plot.plot(x, y, color = 'black')
+        plot.plot(x, y, color = in_color, linewidth = width)
 
 
