@@ -6,6 +6,8 @@ from scipy.spatial import ConvexHull
 class MyPolygon:
     def __init__(self, points):
         self.points = np.array(points)
+        self.slice_l = np.array([2,2])
+        self.slice_r = np.array([2,2])
         self._update()
 
     def print(self):
@@ -20,6 +22,8 @@ class MyPolygon:
         self.height = self.max_y-self.min_y
         self.width = self.max_x-self.min_x
         self.mass_center = (np.mean(self.points[:, 0]), np.mean(self.points[:, 1]))
+        self.slice_l = np.array([[self.min_x, 0],[self.min_x, 0]])
+        self.slice_r = np.array([[self.max_x, 0],[self.max_x, 0]])
 
     def move_x(self, x):
         self.points[:, 0] += x
