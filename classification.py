@@ -2,37 +2,7 @@ import numpy as np
 from shapely.geometry import LineString, Polygon
 import math
 from scipy.spatial import ConvexHull
-
-class MyPolygon:
-    def __init__(self, points):
-        self.points = np.array(points)
-        self.slice_l = np.array([2,2])
-        self.slice_r = np.array([2,2])
-        self._update()
-
-    def print(self):
-        print(f'min x:{self.min_x}, max x:{self.max_x},  min y:{self.min_y},  max y:{self.max_y}')
-        print(self.points)
-
-    def _update(self):   
-        self.min_x = np.min(self.points[:, 0])
-        self.max_x = np.max(self.points[:, 0])
-        self.min_y = np.min(self.points[:, 1])
-        self.max_y = np.max(self.points[:, 1])
-        self.height = self.max_y-self.min_y
-        self.width = self.max_x-self.min_x
-        self.mass_center = (np.mean(self.points[:, 0]), np.mean(self.points[:, 1]))
-        self.slice_l = np.array([[self.min_x, 0],[self.min_x, 0]])
-        self.slice_r = np.array([[self.max_x, 0],[self.max_x, 0]])
-
-    def move_x(self, x):
-        self.points[:, 0] += x
-        self._update()
-
-    def move_y(self, y):
-        self.points[:, 1] += y
-        self._update()
-
+from polygons import *
 
 def generates_rays(polygon, step, traversal = 'vertical'):
     height = np.max(polygon[:, 1])-np.min(polygon[:, 1])

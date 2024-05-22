@@ -2,59 +2,11 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from classification import *
 from decomposition import *
+from polygons import *
 
 def plot_intersection(plot, intersects):
     for point in intersects:
         ax.scatter(*zip(*point), color = 'r', s = 15)
-
-
-glob_poly = MyPolygon([[0,0], 
-                       [20,300], 
-                       [300,350], 
-                       [320,0]])
-
-a_poly = MyPolygon([[105,100], 
-                    [103,120], 
-                    [105,140], 
-                    [107,120]])
-
-c1_poly = MyPolygon([[200,200], 
-                     [200,225], 
-                     [225,225], 
-                     [225,200]])
-
-c2_poly = MyPolygon([[233,200], 
-                     [233,225], 
-                     [258,225], 
-                     [258,200]])
-
-c3_poly = MyPolygon([[133,200], 
-                     [133,225], 
-                     [158,225], 
-                     [158,200]])          
-
-b1_poly = MyPolygon([[50,5], 
-                     [50,30], 
-                     [75,30], 
-                     [75,5]])
-
-b2_poly = MyPolygon([[78,5], 
-                     [78,30], 
-                     [103,30], 
-                     [103,5]])
-                    
-d_poly = MyPolygon([[200,100], 
-                    [200,125], 
-                    [225,125], 
-                    [225,100]])
-
-
-c1_poly.move_y(12)
-c2_poly.move_x(-6)
-a_poly.move_x(-45)
-a_poly.move_y(40)
-d_poly.move_x(-10)
-polygons = [a_poly, c1_poly, c2_poly, c3_poly, b1_poly, b2_poly, d_poly]
 
 lines = generates_rays(glob_poly.points, 10, traversal='vertical')
 
@@ -66,10 +18,15 @@ for i in range(lines.shape[2]):
     lines[:, :, i][0] = intersect_points[i][0]
     lines[:, :, i][1] = intersect_points[i][1]
 
-marked_obstacles = classification(glob_poly, lines, polygons, step=10, traversal='vertical')
+marked_obstacles = classification(glob_poly, lines, polygons1, step=10, traversal='vertical')
 
 # marked_obstacles['d'] = create_slices(glob_poly, marked_obstacles['d'])
 slices = np.array(create_slices(glob_poly, marked_obstacles['d']))
+
+# intersect_slices_with_polygons(polygons1, slices)
+# create_sub_poly(glob_poly, slices)
+
+test_intersect(glob_poly, polygons1, slices)
 
 intersect_slices = []
 for i in range(slices.shape[2]):
@@ -98,10 +55,10 @@ for elem in marked_obstacles['c']:
 for elem in marked_obstacles['d']:
     ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
 
-# plot_lines(ax, lines, 'black', 1)
-# plot_lines(ax, slices, 'blue', 3)
-plot_lines(ax, print_lines, 'blue', 3)
-print(slices[:,:,5])
+plot_lines(ax, lines, 'black', 1)
+plot_lines(ax, slices, 'blue', 3)
+# plot_lines(ax, print_lines, 'blue', 3)
+# print(slices[:,:,5])
 for obs in marked_obstacles['d']:
     x_l = [point[0] for point in obs.slice_l]
     y_l = [point[1] for point in obs.slice_l]
