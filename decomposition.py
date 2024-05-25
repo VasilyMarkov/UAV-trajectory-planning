@@ -2,22 +2,76 @@ from classification import *
 from functools import cmp_to_key
 from shapely.geometry import Polygon, MultiPolygon
 
+class Point:    
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def print(self):
+        print(f'x: {self.x}, y: {self.y}')
+
+
+class Line:
+    def  __init__(self, Point1, Point2):
+        self.Point1 = Point1
+        self.Point2 = Point2
+    def print(self):
+        print(f'Line: p1: ({self.Point1.x}, {self.Point1.y}), p2: ({self.Point2.x}, {self.Point2.y})')
+
+
+class Slice:
+    def  __init__(self, Line, Points, sl_id):
+        self.Line = Line
+        self.Points = Points
+        self.id = sl_id
+    def print(self):
+        print(f'Slice: id {self.id}')
+        self.Line.print()
+        print('Points: ')
+        for p in self.Points:
+            p.print()
+
+
+def intersect(polygon, line):
+    line_str = LineString([[line.Point1.x, line.Point1.y], [line.Point2.x, line.Point2.y]] )
+    polygon = Polygon(polygon)
+    intersection_points = []
+    intersection = polygon.intersection(line_str)
+    intersection_points.append(intersection)
+    points = list(intersection.coords)
+    return points 
+
 
 def create_slices(glob, obstacles):
-    # for obs in obstacles:
-    #     obs.slice_l[0][1] = glob.min_y
-    #     obs.slice_l[1][1] = glob.max_y
-    #     obs.slice_r[0][1] = glob.min_y
-    #     obs.slice_r[1][1] = glob.max_y
-    # return obstacles
-    min_x = [obs.min_x for obs in obstacles]
-    max_x = [obs.max_x for obs in obstacles]
-    boundaries = sorted(set(min_x+max_x))
-    lines = np.zeros([2,2, len(boundaries)])
-    for i in range(lines.shape[2]):
-        lines[:, :, i] = np.array([[boundaries[i], glob.min_y], [boundaries[i], glob.max_y]])
+    min_x = list(map(lambda i, o: (i, o.min_x), range(len(obstacles)), obstacles))
+    max_x = list(map(lambda i, o: (i, o.max_x), range(len(obstacles)), obstacles))
+    slices = []
+    for x in min_x:
+        line = Line(Point(x[1], glob.min_y), Point(x[1],glob.max_y))
+        points = intersect(glob.points, line)
+        line = Line(Point(points[0][0], points[0][1]), Point(points[1][0], points[1][1]))
+        points = intersect(obstacles[x[0]].points, line)
+        p_list = []
+        for p in points:
+            p_list.append(Point(p[0], p[1]))
+        slices.append(Slice(line, p_list, x[0]))
 
-    return lines
+    for x in max_x:
+        line = Line(Point(x[1], glob.min_y), Point(x[1],glob.max_y))
+        points = intersect(glob.points, line)
+        line = Line(Point(points[0][0], points[0][1]), Point(points[1][0], points[1][1]))
+        points = intersect(obstacles[x[0]].points, line)
+        p_list = []
+        for p in points:
+            p_list.append(Point(p[0], p[1]))
+        slices.append(Slice(line, p_list, x[0]))
+    for s in slices:
+        s.print()
+    # boundaries = sorted(set(min_x+max_x))
+    # lines = np.zeros([2,2, len(boundaries)])
+    # for i in range(lines.shape[2]):
+    #     lines[:, :, i] = np.array([[boundaries[i], glob.min_y], [boundaries[i], glob.max_y]])
+
+    return slices
 
 
 def line_poly_intersect_merge(polygons, lines):
@@ -48,7 +102,7 @@ def intersect_slices_with_polygons(polygons, slices):
     # return intersect_slices
 
 
-def create_sub_poly(glob, slices):
+def create_sub_poly(glob, polygons, slices):
     sub_polyes = []
     for i in range(slices.shape[2]):
         if i == 0:
@@ -56,17 +110,6 @@ def create_sub_poly(glob, slices):
         elif i == slices.shape[2]-1:
             sub_polyes.append(MyPolygon([list(slices[0,:,i]), list(slices[1,:,i]), list(glob.points[2]), list(glob.points[3])]))
         else:
-            sub_polyes.append(MyPolygon([list(slices[0,:,i-1]), list(slices[1,:,i-1]), list(slices[1,:,i]), list(slices[0,:,i])]))
-    sub_polyes[1].print()
+            ...
+    # sub_polyes[1].print()
 
-
-def test_intersect(glob, polygons, lines): 
-    large_polygon = Polygon(glob.points)
-    smaller_polygons = [Polygon(poly.points) for poly in polygons]
-    shared_lines = []
-    for smaller_polygon in smaller_polygons:
-        smaller_polygon_boundary = smaller_polygon.boundary
-        shared_lines_temp = large_polygon.boundary.intersection(smaller_polygon_boundary)
-        print(shared_lines_temp)
-        # shared_lines.extend(shared_lines_temp)
-    print(shared_lines)
