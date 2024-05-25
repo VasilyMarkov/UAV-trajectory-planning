@@ -46,6 +46,9 @@ def plot_line(plot, line, i_color, width):
     x = [line.Point1.x, line.Point2.x]
     y = [line.Point1.y, line.Point2.y]
     plot.plot(x, y, color = i_color, linewidth = width)
+
+glob = glob_poly1
+
 # lines = generates_rays(glob_poly.points, 10, traversal='vertical')
 
 # intersect_points = []
@@ -61,7 +64,7 @@ def plot_line(plot, line, i_color, width):
 # marked_obstacles['d'] = create_slices(glob_poly, marked_obstacles['d'])
 # slices = np.array(create_slices(glob_poly, marked_obstacles['d']))
 slices = np.array(create_slices(glob_poly, polygons1))
-result, vertices = rc.smallest_rectangle(list(glob_poly2.points), rc.compare_area)
+result, vertices = rc.smallest_rectangle(list(glob.points), rc.compare_area)
 mbr = MyPolygon(vertices)
 
 ref_line = Line(Point(vertices[3][0], vertices[3][1]), Point(vertices[2][0], vertices[2][1]))
@@ -73,19 +76,22 @@ w = 10
 l = w/np.cos(np.pi/2 - angle)
 
 lines = []
-new = copy.copy(ref_line)
 offset = 0
-ref_line.print()
-ref_line.move(1,1)
-ref_line.print()
 ver_x = np.array(vertices)[:, :1]
 
-while(offset <= np.max(ver_x)):
+while(True):
     new_line = copy.deepcopy(ref_line)
     new_line = shift_line(new_line, offset)
-    lines.append(new_line)
+    points = intersect(glob.points, new_line)
+    if len(points) == 1:
+        offset += l
+        continue
+    if len(points) == 0:
+        break
+    line = Line(Point(points[0][0], points[0][1]), Point(points[1][0], points[1][1]))
+    lines.append(line)
     offset += l
-# print(lines[1].print())
+
 # intersect_slices_with_polygons(polygons1, slices)
 # create_sub_poly(glob_poly, polygons1, slices)
 
@@ -103,7 +109,7 @@ while(offset <= np.max(ver_x)):
 
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
-ax.add_patch(patches.Polygon(glob_poly2.points, fill=False))
+ax.add_patch(patches.Polygon(glob.points, fill=False))
 ax.add_patch(patches.Polygon(mbr.points, color = 'b', fill=False))
 plot_line(ax, ref_line, i_color ='r', width=3)
 for line in lines:
