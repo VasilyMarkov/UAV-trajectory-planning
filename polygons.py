@@ -31,10 +31,28 @@ class MyPolygon:
         self.points[:, 1] += y
         self._update()
 
-glob_poly = MyPolygon([[0,0], 
+glob_poly = MyPolygon([[0,0],
+                       [0,150],  
                        [20,300], 
-                       [300,350], 
+                       [150,330], 
+                       [300,300], 
+                       [310,150], 
                        [320,0]])
+
+glob_poly1 = MyPolygon([[40,0],
+                        [0,100],  
+                        [50,300], 
+                        [150,330], 
+                        [250,200], 
+                        [330,200], 
+                        [300,0]])
+
+glob_poly2 = MyPolygon([[50,0],
+                        [0,100],  
+                        [150,300], 
+                        [250,300], 
+                        [300,200], 
+                        [100,0]])
 
 a_poly = MyPolygon([[105,100], 
                     [103,120], 
@@ -95,4 +113,4 @@ poly3 = MyPolygon([[250,100],
                     [300,150], 
                     [300,100]])
 
-polygons1 = [poly1, poly2, poly3]
+polygons1 = [poly1, poly3, poly2]
