@@ -3,37 +3,31 @@ import matplotlib.patches as patches
 from classification import *
 from decomposition import *
 from polygons import *
+from adj_graph import *
 import rotating_calipers as rc
 import copy
 import math
-
+import time
+from optimizer import *
 
 def shift_line(line, distance):
     # Find the directional vector of the line
     dx = line.Point2.x - line.Point1.x
     dy = line.Point2.y - line.Point1.y
-
     # Rotate it 90 degrees counterclockwise to get the normal vector
     nx = dy
     ny = -dx
-
     # Normalize the vector
     length = math.sqrt(nx*nx + ny*ny)
     nx /= length
     ny /= length
-
     # Multiply the normal vector by the distance
     nx *= distance
     ny *= distance
-
-    # Add the scaled normal vector to the coordinates of the points that define the line
     line.Point1.x += nx
     line.Point1.y += ny
     line.Point2.x += nx
     line.Point2.y += ny
-    # y1_new = line.Point1.y + ny
-    # x2_new = line.Point2.x + nx
-    # y2_new = line.Point2.x + ny
 
     return line
 
@@ -46,6 +40,16 @@ def plot_line(plot, line, i_color, width):
     x = [line.Point1.x, line.Point2.x]
     y = [line.Point1.y, line.Point2.y]
     plot.plot(x, y, color = i_color, linewidth = width)
+
+def flatten_list(i_list):
+    output = []
+    for item in i_list:
+        if isinstance(item, tuple):
+            output.append(item)
+        elif isinstance(item, list):
+            output.extend([tup for tup in item])
+    return output
+
 
 glob = glob_poly1
 
@@ -82,16 +86,55 @@ ver_x = np.array(vertices)[:, :1]
 while(True):
     new_line = copy.deepcopy(ref_line)
     new_line = shift_line(new_line, offset)
-    points = intersect(glob.points, new_line)
-    if len(points) == 1:
+    global_points = intersect(glob.points, new_line)
+    if len(global_points) == 1:
         offset += l
         continue
-    if len(points) == 0:
+    if len(global_points) == 0:
         break
-    line = Line(Point(points[0][0], points[0][1]), Point(points[1][0], points[1][1]))
-    lines.append(line)
+    points = []
+    points.append(global_points[0])
+    
+    intersect_p = []
+    for poly in polygons1:
+        point = intersect(poly.points, new_line)
+        if len(point) != 0:
+            points.append(point)
+    points.append(global_points[1])
+    points = flatten_list(points)
+    for i in range(len(points)-1):
+        if i % 2 == 0:
+            line = Line(Point(points[i][0], points[i][1]), Point(points[i+1][0], points[i+1][1])) 
+            lines.append(line)
+    
     offset += l
 
+line1 = Line(Point(0, 0), Point(0, 10))
+line2 = Line(Point(10, 0), Point(10, 10))
+line3 = Line(Point(20, 0), Point(20, 10))
+graph = create_graph(lines)
+# graph = create_graph([line1, line2, line3])
+cost = nx.get_edge_attributes(graph, "cost")
+line_points = []
+for line in lines:
+    line_points.append((line.Point1.x, line.Point1.y))
+    line_points.append((line.Point2.x, line.Point2.y))
+line_points = np.array(line_points)  
+
+graph_points = line_points.copy()
+
+graph_points -= graph_points[0]
+
+start = time.time()
+cost_matrix = cost_matrix_with_start(graph_points[1:], graph_points[0], distance)
+best_route, best_route_cost  = ant_colony(cost_matrix, graph_points[0], n_ants=2)
+print(best_route, best_route_cost)
+end = time.time()
+print(end-start)
+
+output_lines = []
+for i in best_route:
+    output_lines.append(line_points[i])
 # intersect_slices_with_polygons(polygons1, slices)
 # create_sub_poly(glob_poly, polygons1, slices)
 
@@ -109,11 +152,26 @@ while(True):
 
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
+
 ax.add_patch(patches.Polygon(glob.points, fill=False))
 ax.add_patch(patches.Polygon(mbr.points, color = 'b', fill=False))
 plot_line(ax, ref_line, i_color ='r', width=3)
 for line in lines:
     plot_line(ax, line, i_color ='g', width=1)
+
+for i in range(len(output_lines)-1):
+    x1 = output_lines[i][0]
+    y1 = output_lines[i][1]
+    x2 = output_lines[i+1][0]
+    y2 = output_lines[i+1][1]
+    ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 3)
+# fig = plt.figure(figsize=(8, 8))
+# ax1 = fig.add_subplot()
+# plot_graph(graph)
+
+for elem in polygons1:
+    ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
+
 # for elem in marked_obstacles['a']:
 #     ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
 

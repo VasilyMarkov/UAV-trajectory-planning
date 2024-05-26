@@ -43,39 +43,49 @@ p6 = MyPolygon([[200,0],
                [300,100],
                [300,0]])
 
-graph = Graph
 
-polygons = {
-  0: p1,
-  1: p2,
-  2: p3,
-  3: p4,
-  4: p5,
-  5: p6,
-}
+def create_graph(lines):
+    A = nx.Graph()
+    cnt = 0
+    for i in range(len(lines)):  
+        A.add_node((i,0), pos = (i,0))
+        A.add_node((i,1), pos = (i,1))
+    for i in range(len(lines)):
+        A.add_edge((i,0), (i,1), cost = 1)
+        for j in range(i+1, len(lines)):  
+            A.add_edge((i,0), (j,0), cost = round(np.hypot(lines[i].Point1.x-lines[j].Point1.x, lines[i].Point1.y-lines[j].Point1.y), 1))
+            A.add_edge((i,0), (j,1), cost = round(np.hypot(lines[i].Point1.x-lines[j].Point2.x, lines[i].Point1.y-lines[j].Point2.y), 1))
+            A.add_edge((i,1), (j,0), cost = round(np.hypot(lines[i].Point2.x-lines[j].Point1.x, lines[i].Point2.y-lines[j].Point1.y), 1))
+            A.add_edge((i,1), (j,1), cost = round(np.hypot(lines[i].Point2.x-lines[j].Point2.x, lines[i].Point2.y-lines[j].Point2.y), 1))
+    return A
 
-G = nx.Graph()
 
-G.add_edge("A", "B", cost=2)
-G.add_edge("B", "C", cost=2)
-G.add_edge("A", "H", cost=2)
-G.add_edge("H", "G", cost=2)
-G.add_edge("C", "F", cost=1)
-G.add_edge("F", "G", cost=1)
-G.add_edge("G", "F", cost=1)
-G.add_edge("F", "C", cost=1)
-G.add_edge("C", "D", cost=10)
-G.add_edge("E", "D", cost=2)
-G.add_edge("G", "E", cost=2)
+def plot_graph(G):
+    elarge = [(u, v) for (u, v, d) in G.edges(data=True) if d["cost"] > 0.5]
+    esmall = [(u, v) for (u, v, d) in G.edges(data=True) if d["cost"] <= 0.5]
 
-# aco = ACO(G, ant_max_steps=100, num_iterations=100, ant_random_spawn=True)
+    pos=nx.get_node_attributes(G,'pos')
 
-# aco_path, aco_cost = aco.find_shortest_path(
-#     source="A",
-#     destination="D",
-#     num_ants=100,
-# )
-# print(aco_path, aco_cost)
+    # nodes
+    nx.draw_networkx_nodes(G, pos, node_size=700)
+
+    # edges
+    nx.draw_networkx_edges(G, pos, edgelist=elarge, width=6)
+    nx.draw_networkx_edges(
+        G, pos, edgelist=esmall, width=6, alpha=0.5, edge_color="b", style="dashed"
+    )
+
+    # node labels
+    nx.draw_networkx_labels(G, pos, font_size=20, font_family="sans-serif")
+    # edge weight labels
+    edge_labels = nx.get_edge_attributes(G, "cost")
+    nx.draw_networkx_edge_labels(G, pos, edge_labels)
+
+    ax = plt.gca()
+    ax.margins(0.08)
+    plt.axis("off")
+    plt.tight_layout()
+    plt.show()
 
 def create_block(parity):
     A = nx.Graph()
@@ -84,52 +94,30 @@ def create_block(parity):
     A.add_node(3, pos = (1,2))
     A.add_node(4, pos = (1,0))
 
-    A.add_edge(1,2, weight = 1)
-    A.add_edge(3,4, weight = 1)
+    A.add_edge(1,2, cost = 1)
+    A.add_edge(3,4, cost = 1)
     L = 100
     e = 0
     if parity == 'even':
         e = 1
     if parity == 'odd':
         e = -1
-    A.add_edge(2,3, weight = L**e)
-    A.add_edge(1,4, weight = L**e)
+    A.add_edge(2,3, cost = L**e)
+    A.add_edge(1,4, cost = L**e)
     
-    A.add_edge(1,3, weight = L**-e)
-    A.add_edge(2,4, weight = L**-e)
+    A.add_edge(1,3, cost = L**-e)
+    A.add_edge(2,4, cost = L**-e)
     return A
 
 G = create_block('even')
 
-# G.add_edge("a", "b", weight=1)
-# G.add_edge("a", "c", weight=2)
-# G.add_edge("c", "d", weight=3)
-# G.add_edge("c", "e", weight=4)
-# G.add_edge("c", "f", weight=5)
-# G.add_edge("a", "d", weight=6)
+aco = ACO(G, ant_max_steps=100, num_iterations=100, ant_random_spawn=True)
 
-elarge = [(u, v) for (u, v, d) in G.edges(data=True) if d["weight"] > 0.5]
-esmall = [(u, v) for (u, v, d) in G.edges(data=True) if d["weight"] <= 0.5]
-
-pos=nx.get_node_attributes(G,'pos')
-
-# nodes
-nx.draw_networkx_nodes(G, pos, node_size=700)
-
-# edges
-nx.draw_networkx_edges(G, pos, edgelist=elarge, width=6)
-nx.draw_networkx_edges(
-    G, pos, edgelist=esmall, width=6, alpha=0.5, edge_color="b", style="dashed"
+aco_path, aco_cost = aco.find_shortest_path(
+    source=1,
+    destination=3,
+    num_ants=100,
 )
+print(aco_path, aco_cost)
+# plot_graph(G)
 
-# node labels
-nx.draw_networkx_labels(G, pos, font_size=20, font_family="sans-serif")
-# edge weight labels
-edge_labels = nx.get_edge_attributes(G, "weight")
-nx.draw_networkx_edge_labels(G, pos, edge_labels)
-
-ax = plt.gca()
-ax.margins(0.08)
-plt.axis("off")
-plt.tight_layout()
-plt.show()

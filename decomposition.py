@@ -6,6 +6,9 @@ class Point:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+    def move(self, x, y):
+        self.x += x
+        self.y += y
     def print(self):
         print(f'x: {self.x}, y: {self.y}')
 
@@ -14,6 +17,11 @@ class Line:
     def  __init__(self, Point1, Point2):
         self.Point1 = Point1
         self.Point2 = Point2
+        self.vector = np.array([self.Point2.x - self.Point1.x, self.Point2.y - self.Point1.y])
+    def move(self, x, y):
+        self.Point1.move(x,y)
+        self.Point2.move(x,y)
+        self.vector = np.array([self.Point2.x - self.Point1.x, self.Point2.y - self.Point1.y])
     def print(self):
         print(f'Line: p1: ({self.Point1.x}, {self.Point1.y}), p2: ({self.Point2.x}, {self.Point2.y})')
 
@@ -64,8 +72,6 @@ def create_slices(glob, obstacles):
         for p in points:
             p_list.append(Point(p[0], p[1]))
         slices.append(Slice(line, p_list, x[0]))
-    for s in slices:
-        s.print()
     # boundaries = sorted(set(min_x+max_x))
     # lines = np.zeros([2,2, len(boundaries)])
     # for i in range(lines.shape[2]):
