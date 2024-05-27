@@ -21,6 +21,20 @@ def cost_matrix_lines(points: np.ndarray, cost_function: Callable = distance) ->
     return cost_matrix
 
 
+def cost_matrix_lines1(points: np.ndarray, cost_function: Callable = distance) -> np.ndarray:
+    n = len(points)
+    cost_matrix = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i, n):
+            if i % 2 == 0 and j == i + 1:
+                cost_matrix[i, j] = 0.01
+                cost_matrix[j, i] = 0.01
+            else:
+                cost_matrix[i, j] = cost_function(points[i], points[j])
+                cost_matrix[j, i] = cost_function(points[j], points[i])
+    return cost_matrix
+
+
 def cost_matrix_with_start(points: np.ndarray, start_point: np.ndarray,
                            cost_function: Callable = distance) -> np.ndarray:
     n = len(points)

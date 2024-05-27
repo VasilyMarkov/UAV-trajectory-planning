@@ -76,7 +76,7 @@ unit_ref_line = ref_line.vector/np.linalg.norm(ref_line.vector)
 basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
-w = 10
+w = 30
 l = w/np.cos(np.pi/2 - angle)
 
 lines = []
@@ -124,17 +124,24 @@ line_points = np.array(line_points)
 graph_points = line_points.copy()
 
 graph_points -= graph_points[0]
+test_point = graph_points
+eye_point = np.array([
+    [0,0],
+    [0,1],
+    [1,0],
+    [1,1]
+    ])
 
-start = time.time()
-cost_matrix = cost_matrix_with_start(graph_points[1:], graph_points[0], distance)
-best_route, best_route_cost  = ant_colony(cost_matrix, graph_points[0], n_ants=2)
+# cost_matrix = cost_matrix_with_start(eye_point[1:], eye_point[0], distance)
+cost_matrix = cost_matrix_lines1(test_point, distance)
+best_route, best_route_cost  = ant_colony(cost_matrix, eye_point[0], n_ants=2)
+print(cost_matrix)
 print(best_route, best_route_cost)
-end = time.time()
-print(end-start)
 
 output_lines = []
 for i in best_route:
     output_lines.append(line_points[i])
+
 # intersect_slices_with_polygons(polygons1, slices)
 # create_sub_poly(glob_poly, polygons1, slices)
 
@@ -164,7 +171,18 @@ for i in range(len(output_lines)-1):
     y1 = output_lines[i][1]
     x2 = output_lines[i+1][0]
     y2 = output_lines[i+1][1]
-    ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 3)
+    ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
+
+
+# for i in range(len(line_points)-1):
+#     x1 = line_points[i][0]
+#     y1 = line_points[i][1]
+#     x2 = line_points[i+1][0]
+#     y2 = line_points[i+1][1]
+#     ax.scatter(x1, y1, color = 'black', linewidths=1)
+#     ax.scatter(x2, y2, color = 'black', linewidths=1)
+#     ax.annotate(str(i), (x1, y1))
+#     ax.annotate(str(i+1), (x2, y2))
 # fig = plt.figure(figsize=(8, 8))
 # ax1 = fig.add_subplot()
 # plot_graph(graph)
