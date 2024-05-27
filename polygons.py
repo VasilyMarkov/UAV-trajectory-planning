@@ -1,5 +1,5 @@
 import numpy as np
-
+import shapely.geometry as sg
 
 class MyPolygon:
     def __init__(self, points):
@@ -114,3 +114,11 @@ poly3 = MyPolygon([[250,100],
                     [300,100]])
 
 polygons1 = [poly1, poly3, poly2]
+
+def boundary(poly, width):
+    poly = sg.Polygon(poly)
+    boundary = poly.buffer(width, join_style=2)
+    boundary_coords = list(boundary.boundary.coords)
+    return MyPolygon(boundary_coords[:-1])
+
+boundaries = [boundary(poly.points, 5) for poly in polygons1]

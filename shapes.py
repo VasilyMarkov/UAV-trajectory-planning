@@ -52,7 +52,7 @@ def flatten_list(i_list):
 
 
 glob = glob_poly1
-
+polygons = polygons1
 # lines = generates_rays(glob_poly.points, 10, traversal='vertical')
 
 # intersect_points = []
@@ -67,7 +67,7 @@ glob = glob_poly1
 
 # marked_obstacles['d'] = create_slices(glob_poly, marked_obstacles['d'])
 # slices = np.array(create_slices(glob_poly, marked_obstacles['d']))
-slices = np.array(create_slices(glob_poly, polygons1))
+slices = np.array(create_slices(glob_poly, polygons))
 result, vertices = rc.smallest_rectangle(list(glob.points), rc.compare_area)
 mbr = MyPolygon(vertices)
 
@@ -96,7 +96,7 @@ while(True):
     points.append(global_points[0])
     
     intersect_p = []
-    for poly in polygons1:
+    for poly in polygons:
         point = intersect(poly.points, new_line)
         if len(point) != 0:
             points.append(point)
@@ -109,35 +109,32 @@ while(True):
     
     offset += l
 
-line1 = Line(Point(0, 0), Point(0, 10))
-line2 = Line(Point(10, 0), Point(10, 10))
-line3 = Line(Point(20, 0), Point(20, 10))
-graph = create_graph(lines)
-# graph = create_graph([line1, line2, line3])
-cost = nx.get_edge_attributes(graph, "cost")
-line_points = []
-for line in lines:
-    line_points.append((line.Point1.x, line.Point1.y))
-    line_points.append((line.Point2.x, line.Point2.y))
-line_points = np.array(line_points)  
+lines = np.array(lines)
+lines = np.roll(lines, 0)
 
-graph_points = line_points.copy()
 
-graph_points -= graph_points[0]
-test_point = graph_points
-eye_point = np.array([
-    [0,0],
-    [0,1],
-    [1,0],
-    [1,1]
-    ])
+route_cost = []
+route = []
+start = time.time()
+for i in range(1):
+    lines = np.roll(lines, 0)
+    line_points = []
+    for line in lines:
+        line_points.append((line.Point1.x, line.Point1.y))
+        line_points.append((line.Point2.x, line.Point2.y))
+    line_points = np.array(line_points)  
+    graph_points = line_points.copy()
+    graph_points -= graph_points[0]
+    cost_matrix = cost_matrix_lines1(graph_points, distance)
+    best_route, best_route_cost  = ant_colony(cost_matrix, graph_points[0], n_ants=2)
+    route.append(best_route)
+    route_cost.append(best_route_cost)
+end = time.time()
 
-# cost_matrix = cost_matrix_with_start(eye_point[1:], eye_point[0], distance)
-cost_matrix = cost_matrix_lines1(test_point, distance)
-best_route, best_route_cost  = ant_colony(cost_matrix, eye_point[0], n_ants=2)
-print(cost_matrix)
-print(best_route, best_route_cost)
-
+print(np.min(route_cost))
+# print(np.min(route_cost))
+print(f'Time: {end-start} s')
+best_route = route[np.argmin(route_cost)]
 output_lines = []
 for i in best_route:
     output_lines.append(line_points[i])
@@ -161,10 +158,10 @@ fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
 
 ax.add_patch(patches.Polygon(glob.points, fill=False))
-ax.add_patch(patches.Polygon(mbr.points, color = 'b', fill=False))
-plot_line(ax, ref_line, i_color ='r', width=3)
-for line in lines:
-    plot_line(ax, line, i_color ='g', width=1)
+# ax.add_patch(patches.Polygon(mbr.points, color = 'b', fill=False))
+# plot_line(ax, ref_line, i_color ='r', width=3)
+# for line in lines:
+#     plot_line(ax, line, i_color ='g', width=1)
 
 for i in range(len(output_lines)-1):
     x1 = output_lines[i][0]
@@ -172,8 +169,11 @@ for i in range(len(output_lines)-1):
     x2 = output_lines[i+1][0]
     y2 = output_lines[i+1][1]
     ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
+print(len(output_lines))
+ax.scatter(output_lines[0][0], output_lines[0][1], color = 'red', linewidths=5)
+ax.scatter(output_lines[len(output_lines)-1][0], output_lines[len(output_lines)-1][1], color = 'g', linewidths=5)
 
-
+    # ax.scatter(x2, y2, color = 'black', linewidths=1)
 # for i in range(len(line_points)-1):
 #     x1 = line_points[i][0]
 #     y1 = line_points[i][1]
@@ -189,6 +189,9 @@ for i in range(len(output_lines)-1):
 
 for elem in polygons1:
     ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
+
+for elem in boundaries:
+    ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=False))
 
 # for elem in marked_obstacles['a']:
 #     ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))
