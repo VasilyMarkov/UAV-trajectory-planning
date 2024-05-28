@@ -9,7 +9,8 @@ import copy
 import math
 import time
 from optimizer import *
-
+from bcd import *
+import dubins
 def shift_line(line, distance):
     # Find the directional vector of the line
     dx = line.Point2.x - line.Point1.x
@@ -51,17 +52,8 @@ def flatten_list(i_list):
     return output
 
 
-glob = glob_poly1
-polygons = polygons1
-# lines = generates_rays(glob_poly.points, 10, traversal='vertical')
-
-# intersect_points = []
-# for i in range(lines.shape[2]):
-#     intersect_points.append(intersection(glob_poly.points, lines[:, :, i]))
-
-# for i in range(lines.shape[2]):
-#     lines[:, :, i][0] = intersect_points[i][0]
-#     lines[:, :, i][1] = intersect_points[i][1]
+glob = glob_poly
+polygons = boundaries
 
 # marked_obstacles = classification(glob_poly, lines, polygons1, step=10, traversal='vertical')
 
@@ -72,72 +64,171 @@ result, vertices = rc.smallest_rectangle(list(glob.points), rc.compare_area)
 mbr = MyPolygon(vertices)
 
 ref_line = Line(Point(vertices[3][0], vertices[3][1]), Point(vertices[2][0], vertices[2][1]))
+
+ref_line = Line(Point(-100, -100), Point(-100, 400))
+
+# ref_line.print()
+
 unit_ref_line = ref_line.vector/np.linalg.norm(ref_line.vector)
 basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
-w = 30
+w = 10
 l = w/np.cos(np.pi/2 - angle)
 
 lines = []
 offset = 0
 ver_x = np.array(vertices)[:, :1]
-
-while(True):
+point_cnt = 0
+for i in range(100):
     new_line = copy.deepcopy(ref_line)
     new_line = shift_line(new_line, offset)
     global_points = intersect(glob.points, new_line)
-    if len(global_points) == 1:
-        offset += l
-        continue
-    if len(global_points) == 0:
-        break
-    points = []
-    points.append(global_points[0])
-    
-    intersect_p = []
-    for poly in polygons:
-        point = intersect(poly.points, new_line)
-        if len(point) != 0:
-            points.append(point)
-    points.append(global_points[1])
-    points = flatten_list(points)
-    for i in range(len(points)-1):
-        if i % 2 == 0:
-            line = Line(Point(points[i][0], points[i][1]), Point(points[i+1][0], points[i+1][1])) 
-            lines.append(line)
+    # if len(global_points) == 1:
+    #     offset += l
+    #     continue
+    # if len(global_points) == 0:
+    #     break
+    if len(global_points) == 2:
+        points = []
+        points.append(global_points[0])
+        
+        intersect_p = []
+        for poly in polygons:
+            point = intersect(poly.points, new_line)
+            if len(point) != 0:
+                points.append(point)
+        points.append(global_points[1])
+        points = flatten_list(points)
+        for i in range(len(points)-1):
+            if i % 2 == 0:
+                line = Line(Point(points[i][0], points[i][1]), Point(points[i+1][0], points[i+1][1])) 
+                lines.append(line)
     
     offset += l
 
-lines = np.array(lines)
-lines = np.roll(lines, 0)
+print(point_cnt)
+
+def rotate(origin, point, angle):
+    """
+    Rotate a point counterclockwise by a given angle around a given origin.
+
+    The angle should be given in radians.
+    """
+    ox, oy = origin
+    px, py = point
+
+    qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+    qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+    return qx, qy
+
+delta = -100
+center = (175,175)
+grid = []
+for i in range((int(350/w)+30)):
+    lns = [[delta, -200],[delta, 700]]
+    delta += w
+    grid.append(lns)
+
+points_cnt = []
+for i in range(90):
+    rotate_grid = []
+    for line in grid:
+        p1x, p1y = rotate(center, (line[0][0], line[0][1]), np.radians(i))
+        p2x, p2y = rotate(center, (line[1][0], line[1][1]), np.radians(i))
+        line = [[p1x, p1y],[p2x, p2y]]
+        rotate_grid.append(line)
+
+    inter_line = []
+    gp = []
+    for rot_line in rotate_grid:
+        points = intersect1(glob.points, rot_line)
+        if len(points) == 2:
+            tmp = []
+            tmp.append(points[0])
+            for poly in polygons:
+                poly_points = intersect1(poly.points, rot_line)
+                if len(poly_points) != 0:
+                    tmp.append(poly_points)
+            tmp.append(points[1])   
+            tmp = flatten_list(tmp)
+            for i in range(len(tmp)-1):
+                if i % 2 == 0:
+                    line = [[tmp[i][0], tmp[i][1]],[tmp[i+1][0], tmp[i+1][1]]]
+                    inter_line.append(line)
+    
+    # inter_poly_line = []
+    # for rot_line in inter_line:
+    #     for poly in polygons:
+    #         points = intersect1(poly.points, rot_line)
+    #         if len(points) != 0:
+    #             line = [[points[0][0], points[0][1]],[points[1][0], points[1][1]]]
+    #             inter_poly_line.append(line)
+
+    points_cnt.append(len(inter_line)*2)
+print(len(inter_line))
+print(f'Arg: {np.argmax(points_cnt)}, Max: {np.max(points_cnt)}')
+print(f'Arg: {np.argmin(points_cnt)}, Max: {np.min(points_cnt)}')
 
 
-route_cost = []
-route = []
-start = time.time()
-for i in range(1):
-    lines = np.roll(lines, 0)
-    line_points = []
-    for line in lines:
-        line_points.append((line.Point1.x, line.Point1.y))
-        line_points.append((line.Point2.x, line.Point2.y))
-    line_points = np.array(line_points)  
-    graph_points = line_points.copy()
-    graph_points -= graph_points[0]
-    cost_matrix = cost_matrix_lines1(graph_points, distance)
-    best_route, best_route_cost  = ant_colony(cost_matrix, graph_points[0], n_ants=2)
-    route.append(best_route)
-    route_cost.append(best_route_cost)
-end = time.time()
+# p1 = (lines[1].Point2.x, lines[1].Point2.y, np.radians(90))
+# p2 = (lines[3].Point2.x, lines[3].Point2.y, np.radians(-90))
 
-print(np.min(route_cost))
-# print(np.min(route_cost))
-print(f'Time: {end-start} s')
-best_route = route[np.argmin(route_cost)]
-output_lines = []
-for i in best_route:
-    output_lines.append(line_points[i])
+# turning_radius = w/2
+# step_size = 0.5
+
+# path, _ = dubins.path_sample(p1, p2, turning_radius, 1)
+# path = np.array(path)
+# print(path[:, 0])
+
+# configurations, _ = path.sample_many(step_size)
+
+# path_iterator = dubins_path(p1, p2, 15)
+# for mode, path, curvature in path_iterator:
+#     # Print the mode, t, and q values for each iteration
+#     print('Mode:', mode)
+#     print('t:', path)
+#     print('q:', curvature)
+#     print()
+# lines = np.array(lines)
+# lines = np.roll(lines, 0)
+
+# route_cost = []
+# route = []
+# start = time.time()
+# for i in range(1):
+#     lines = np.roll(lines, 0)
+#     line_points = []
+#     for line in lines:
+#         line_points.append((line.Point1.x, line.Point1.y))
+#         line_points.append((line.Point2.x, line.Point2.y))
+#     line_points = np.array(line_points)  
+#     graph_points = line_points.copy()
+#     graph_points -= graph_points[0]
+#     cost_matrix = cost_matrix_lines1(graph_points, distance)
+#     best_route, best_route_cost  = ant_colony(cost_matrix, graph_points[0], n_ants=2)
+#     route.append(best_route)
+#     route_cost.append(best_route_cost)
+# end = time.time()
+
+# print(f'Time: {end-start} s')
+# best_route = route[np.argmin(route_cost)]
+# output_lines = []
+# for i in best_route:
+#     output_lines.append(line_points[i])
+
+# p = []
+# for i in range(len(test_polygons)):
+#     points = [np.array(i) for i in test_polygons[0]]
+#     p.append(points)
+
+# print(test_polygons)
+# print(list(glob_poly.points))
+# cells=BCD(p, gl2, 10)
+# cellplot=[]
+# for i in range(len(cells)):
+#     cell=Polygon(np.array(cells[i]))
+#     cellplot.append(cell)
 
 # intersect_slices_with_polygons(polygons1, slices)
 # create_sub_poly(glob_poly, polygons1, slices)
@@ -156,22 +247,31 @@ for i in best_route:
 
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
+# ax.plot(path[:,0], path[:,1], color = 'b', linewidth = 2)
+# for elem in cellplot:
+#     ax.add_patch(patches.Polygon(elem, color = 'purple', fill=False))
+
+for line in inter_line:
+    x = [line[0][0],line[1][0]]
+    y = [line[0][1],line[1][1]]
+    ax.plot(x, y, color = 'b', linewidth = 2)
 
 ax.add_patch(patches.Polygon(glob.points, fill=False))
+
 # ax.add_patch(patches.Polygon(mbr.points, color = 'b', fill=False))
 # plot_line(ax, ref_line, i_color ='r', width=3)
 # for line in lines:
 #     plot_line(ax, line, i_color ='g', width=1)
 
-for i in range(len(output_lines)-1):
-    x1 = output_lines[i][0]
-    y1 = output_lines[i][1]
-    x2 = output_lines[i+1][0]
-    y2 = output_lines[i+1][1]
-    ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
-print(len(output_lines))
-ax.scatter(output_lines[0][0], output_lines[0][1], color = 'red', linewidths=5)
-ax.scatter(output_lines[len(output_lines)-1][0], output_lines[len(output_lines)-1][1], color = 'g', linewidths=5)
+# for i in range(len(output_lines)-1):
+#     x1 = output_lines[i][0]
+#     y1 = output_lines[i][1]
+#     x2 = output_lines[i+1][0]
+#     y2 = output_lines[i+1][1]
+#     ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
+# print(len(output_lines))
+# ax.scatter(output_lines[0][0], output_lines[0][1], color = 'red', linewidths=5)
+# ax.scatter(output_lines[len(output_lines)-1][0], output_lines[len(output_lines)-1][1], color = 'g', linewidths=5)
 
     # ax.scatter(x2, y2, color = 'black', linewidths=1)
 # for i in range(len(line_points)-1):
@@ -183,8 +283,12 @@ ax.scatter(output_lines[len(output_lines)-1][0], output_lines[len(output_lines)-
 #     ax.scatter(x2, y2, color = 'black', linewidths=1)
 #     ax.annotate(str(i), (x1, y1))
 #     ax.annotate(str(i+1), (x2, y2))
-# fig = plt.figure(figsize=(8, 8))
-# ax1 = fig.add_subplot()
+fig = plt.figure(figsize=(8, 8))
+ax1 = fig.add_subplot()
+
+ax1.plot(points_cnt, color = 'b', linewidth = 1)
+ax1.set_xlabel('Angle, deg')
+ax1.set_ylabel('Points')
 # plot_graph(graph)
 
 for elem in polygons1:
@@ -219,7 +323,7 @@ for elem in boundaries:
 
 # plot_intersection(ax, intersect_points)
 
-ax.set_xlim([-20, 360])
-ax.set_ylim([-40, 360])
+ax.set_xlim([0, 350])
+ax.set_ylim([0, 350])
 plt.show()
 plt.legend()

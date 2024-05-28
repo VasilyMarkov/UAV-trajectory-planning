@@ -49,6 +49,16 @@ def intersect(polygon, line):
     return points 
 
 
+def intersect1(polygon, line):
+    line_str = LineString([[line[0][0], line[0][1]], [line[1][0], line[1][1]]] )
+    polygon = Polygon(polygon)
+    intersection_points = []
+    intersection = polygon.intersection(line_str)
+    intersection_points.append(intersection)
+    points = list(intersection.coords)
+    return points 
+
+
 def create_slices(glob, obstacles):
     min_x = list(map(lambda i, o: (i, o.min_x), range(len(obstacles)), obstacles))
     max_x = list(map(lambda i, o: (i, o.max_x), range(len(obstacles)), obstacles))

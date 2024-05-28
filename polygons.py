@@ -96,7 +96,7 @@ a_poly.move_x(-45)
 a_poly.move_y(40)
 d_poly.move_x(-10)
 
-polygons = [a_poly, c1_poly, c2_poly, c3_poly, b1_poly, b2_poly, d_poly]
+polygons23 = [a_poly, c1_poly, c2_poly, c3_poly, b1_poly, b2_poly, d_poly]
 
 poly1 = MyPolygon([[50,100], 
                     [50,150], 
@@ -113,7 +113,7 @@ poly3 = MyPolygon([[250,100],
                     [300,150], 
                     [300,100]])
 
-polygons1 = [poly1, poly3, poly2]
+polygons1 = [poly1, poly3, poly2] 
 
 def boundary(poly, width):
     poly = sg.Polygon(poly)
@@ -121,4 +121,46 @@ def boundary(poly, width):
     boundary_coords = list(boundary.boundary.coords)
     return MyPolygon(boundary_coords[:-1])
 
-boundaries = [boundary(poly.points, 5) for poly in polygons1]
+boundaries = [boundary(poly.points, 7) for poly in polygons1]
+
+poly1 = [[50,100], 
+        [50,150], 
+        [100,150], 
+        [100,100]]
+
+poly2 = [[150,100], 
+        [150,150], 
+        [200,150], 
+        [200,100]]
+
+poly3 = [[250,100], 
+        [250,150], 
+        [300,150], 
+        [300,100]]
+
+
+gl = [[0,0],
+    [0,150],  
+    [20,300], 
+    [150,330], 
+    [300,300], 
+    [310,150], 
+    [320,0]]
+
+gl1 = [[40,0],
+    [0,100],  
+    [50,300], 
+    [150,330], 
+    [250,200], 
+    [330,200], 
+    [300,0]]
+
+gl2 = [[50,0],
+    [0,100],  
+    [150,300], 
+    [250,300], 
+    [300,200], 
+    [100,0]]
+
+# test_polygons = [poly1, poly3, poly2] 
+test_polygons = [poly2] 
