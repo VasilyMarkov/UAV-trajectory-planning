@@ -73,7 +73,7 @@ unit_ref_line = ref_line.vector/np.linalg.norm(ref_line.vector)
 basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
-w = 10
+w = 30
 l = w/np.cos(np.pi/2 - angle)
 
 lines = []
@@ -122,53 +122,60 @@ def rotate(origin, point, angle):
     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
     return qx, qy
 
-delta = -100
-center = (175,175)
-grid = []
-for i in range((int(350/w)+30)):
-    lns = [[delta, -200],[delta, 700]]
-    delta += w
-    grid.append(lns)
+
+def create_intersect_lines_and_attributes():
+    delta = -100
+    center = (175,175)
+    grid = []
+    for i in range((int(350/w)+30)):
+        lns = [[delta, -200],[delta, 700]]
+        delta += w
+        grid.append(lns)
+
+    for i in range(1):
+        rotate_grid = []
+        for line in grid:
+            p1x, p1y = rotate(center, (line[0][0], line[0][1]), np.radians(i))
+            p2x, p2y = rotate(center, (line[1][0], line[1][1]), np.radians(i))
+            line = [[p1x, p1y],[p2x, p2y]]
+            rotate_grid.append(line)
+
+        inter_line = []
+        attr = []
+        cnt = 0
+        for rot_line in rotate_grid:
+            points = intersect1(glob.points, rot_line)
+            if len(points) == 2:
+                tmp = []
+                tmp.append(points[0])
+                attr.append((cnt, True, None))
+                cnt += 1
+                for i in range(len(polygons)):
+                    poly_points = intersect1(polygons[i].points, rot_line)
+                    if len(poly_points) != 0:
+                        for j in range(len(poly_points)):
+                            tmp.append(poly_points[j])
+                            attr.append((cnt, False, i))
+                            cnt += 1
+                tmp.append(points[1])   
+                attr.append((cnt, True, None))
+                cnt += 1
+                tmp = flatten_list(tmp)
+                for i in range(len(tmp)-1):
+                    if i % 2 == 0:
+                        line = [[tmp[i][0], tmp[i][1]],[tmp[i+1][0], tmp[i+1][1]]]
+                        inter_line.append(line)
+    return inter_line, attr
+
 
 points_cnt = []
-for i in range(90):
-    rotate_grid = []
-    for line in grid:
-        p1x, p1y = rotate(center, (line[0][0], line[0][1]), np.radians(i))
-        p2x, p2y = rotate(center, (line[1][0], line[1][1]), np.radians(i))
-        line = [[p1x, p1y],[p2x, p2y]]
-        rotate_grid.append(line)
+inter_lines, attr = create_intersect_lines_and_attributes()
+print(attr[:15])
+points_cnt.append(len(inter_lines)*2)
+# print(len(inter_lines))
+# print(f'Arg: {np.argmax(points_cnt)}, Max: {np.max(points_cnt)}')
+# print(f'Arg: {np.argmin(points_cnt)}, Max: {np.min(points_cnt)}')
 
-    inter_line = []
-    gp = []
-    for rot_line in rotate_grid:
-        points = intersect1(glob.points, rot_line)
-        if len(points) == 2:
-            tmp = []
-            tmp.append(points[0])
-            for poly in polygons:
-                poly_points = intersect1(poly.points, rot_line)
-                if len(poly_points) != 0:
-                    tmp.append(poly_points)
-            tmp.append(points[1])   
-            tmp = flatten_list(tmp)
-            for i in range(len(tmp)-1):
-                if i % 2 == 0:
-                    line = [[tmp[i][0], tmp[i][1]],[tmp[i+1][0], tmp[i+1][1]]]
-                    inter_line.append(line)
-    
-    # inter_poly_line = []
-    # for rot_line in inter_line:
-    #     for poly in polygons:
-    #         points = intersect1(poly.points, rot_line)
-    #         if len(points) != 0:
-    #             line = [[points[0][0], points[0][1]],[points[1][0], points[1][1]]]
-    #             inter_poly_line.append(line)
-
-    points_cnt.append(len(inter_line)*2)
-print(len(inter_line))
-print(f'Arg: {np.argmax(points_cnt)}, Max: {np.max(points_cnt)}')
-print(f'Arg: {np.argmin(points_cnt)}, Max: {np.min(points_cnt)}')
 
 
 # p1 = (lines[1].Point2.x, lines[1].Point2.y, np.radians(90))
@@ -251,7 +258,7 @@ ax = fig.add_subplot()
 # for elem in cellplot:
 #     ax.add_patch(patches.Polygon(elem, color = 'purple', fill=False))
 
-for line in inter_line:
+for line in inter_lines:
     x = [line[0][0],line[1][0]]
     y = [line[0][1],line[1][1]]
     ax.plot(x, y, color = 'b', linewidth = 2)
@@ -283,12 +290,12 @@ ax.add_patch(patches.Polygon(glob.points, fill=False))
 #     ax.scatter(x2, y2, color = 'black', linewidths=1)
 #     ax.annotate(str(i), (x1, y1))
 #     ax.annotate(str(i+1), (x2, y2))
-fig = plt.figure(figsize=(8, 8))
-ax1 = fig.add_subplot()
+# fig = plt.figure(figsize=(8, 8))
+# ax1 = fig.add_subplot()
 
-ax1.plot(points_cnt, color = 'b', linewidth = 1)
-ax1.set_xlabel('Angle, deg')
-ax1.set_ylabel('Points')
+# ax1.plot(points_cnt, color = 'b', linewidth = 1)
+# ax1.set_xlabel('Angle, deg')
+# ax1.set_ylabel('Points')
 # plot_graph(graph)
 
 for elem in polygons1:
