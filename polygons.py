@@ -113,7 +113,7 @@ poly3 = MyPolygon([[250,100],
                     [300,150], 
                     [300,100]])
 
-polygons1 = [poly1, poly3, poly2] 
+polygons1 = [poly2] 
 
 def boundary(poly, width):
     poly = sg.Polygon(poly)
@@ -121,7 +121,7 @@ def boundary(poly, width):
     boundary_coords = list(boundary.boundary.coords)
     return MyPolygon(boundary_coords[:-1])
 
-boundaries = [boundary(poly.points, 7) for poly in polygons1]
+boundaries = [boundary(poly.points, 30) for poly in polygons1]
 
 poly1 = [[50,100], 
         [50,150], 

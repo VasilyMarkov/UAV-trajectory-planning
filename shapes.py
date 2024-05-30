@@ -9,8 +9,9 @@ import copy
 import math
 import time
 from optimizer import *
-from bcd import *
 import dubins
+from dataclasses import dataclass
+
 def shift_line(line, distance):
     # Find the directional vector of the line
     dx = line.Point2.x - line.Point1.x
@@ -52,6 +53,29 @@ def flatten_list(i_list):
     return output
 
 
+def clockwiseangle_and_distance(point):
+    origin = [175, 175]
+    refvec = [0, 1]
+    # Vector between point and the origin: v = p - o
+    vector = [point[0]-origin[0], point[1]-origin[1]]
+    # Length of vector: ||v||
+    lenvector = math.hypot(vector[0], vector[1])
+    # If length is zero there is no angle
+    if lenvector == 0:
+        return -math.pi, 0
+    # Normalize vector: v/||v||
+    normalized = [vector[0]/lenvector, vector[1]/lenvector]
+    dotprod  = normalized[0]*refvec[0] + normalized[1]*refvec[1]     # x1*x2 + y1*y2
+    diffprod = refvec[1]*normalized[0] - refvec[0]*normalized[1]     # x1*y2 - y1*x2
+    angle = math.atan2(diffprod, dotprod)
+    # Negative angles represent counter-clockwise angles so we need to subtract them 
+    # from 2*pi (360 degrees)
+    if angle < 0:
+        return 2*math.pi+angle, lenvector
+    # I return first the angle because that's the primary sorting criterium
+    # but if two vectors have the same angle then the shorter distance should come first.
+    return angle, lenvector
+
 glob = glob_poly
 polygons = boundaries
 
@@ -73,7 +97,7 @@ unit_ref_line = ref_line.vector/np.linalg.norm(ref_line.vector)
 basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
-w = 30
+w = 130
 l = w/np.cos(np.pi/2 - angle)
 
 lines = []
@@ -122,7 +146,14 @@ def rotate(origin, point, angle):
     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
     return qx, qy
 
+@dataclass
+class Attrubute:
+    index: int
+    global_intersect: bool
+    polygon_index: int
 
+
+angle = 1
 def create_intersect_lines_and_attributes():
     delta = -100
     center = (175,175)
@@ -132,7 +163,7 @@ def create_intersect_lines_and_attributes():
         delta += w
         grid.append(lns)
 
-    for i in range(1):
+    for i in range(angle,angle+1):
         rotate_grid = []
         for line in grid:
             p1x, p1y = rotate(center, (line[0][0], line[0][1]), np.radians(i))
@@ -148,17 +179,17 @@ def create_intersect_lines_and_attributes():
             if len(points) == 2:
                 tmp = []
                 tmp.append(points[0])
-                attr.append((cnt, True, None))
+                attr.append(Attrubute(cnt, True, None))
                 cnt += 1
                 for i in range(len(polygons)):
                     poly_points = intersect1(polygons[i].points, rot_line)
                     if len(poly_points) != 0:
                         for j in range(len(poly_points)):
                             tmp.append(poly_points[j])
-                            attr.append((cnt, False, i))
+                            attr.append(Attrubute(cnt, False, i))
                             cnt += 1
                 tmp.append(points[1])   
-                attr.append((cnt, True, None))
+                attr.append(Attrubute(cnt, True, None))
                 cnt += 1
                 tmp = flatten_list(tmp)
                 for i in range(len(tmp)-1):
@@ -167,26 +198,129 @@ def create_intersect_lines_and_attributes():
                         inter_line.append(line)
     return inter_line, attr
 
+def calc_dubins(in_point, out_point, raduis, step_size):
+    path, _ = dubins.path_sample(in_point, out_point, raduis, step_size)
+    path = np.array(path)
+    l = 0
+    for i in range(len(path)-1):
+        x1, x2 = path[i][0], path[i+1][0]
+        y1, y2 = path[i][1], path[i+1][1]
+        l += np.hypot(x2-x1, y2-y1)
+    return path, l
+
+
+def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.ndarray:
+
+    n = len(points)
+    step_size = 3
+    cost_matrix = np.zeros((n, n))
+    paths = {}
+    for i in range(n):
+        if attr[i].global_intersect == True:
+            for j in range(i, n):
+                if i != j: 
+                    if attr[j].global_intersect == True: 
+                        if i % 2 == 0 and j % 2 == 0:
+                            path, length = calc_dubins((points[i][0], points[i][1], np.radians(270+angle)), 
+                                                    (points[j][0], points[j][1], np.radians(90+angle)), radius, step_size)
+                            paths.update({(i,j): path})
+                            cost_matrix[i, j] = length
+                            cost_matrix[j, i] = length
+                        elif i % 2 != 0 and j % 2 != 0:
+                            path, length = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
+                                                    (points[j][0], points[j][1], np.radians(270+angle)), radius, step_size)
+                            paths.update({(i,j): path})
+                            cost_matrix[i, j] = length
+                            cost_matrix[j, i] = length  
+                        else:
+                            cost_matrix[i, j] = 1000
+                            cost_matrix[j, i] = 1000  
+                    else:
+                        cost_matrix[i, j] = 1000
+                        cost_matrix[j, i] = 1000  
+                    if i % 2 == 0 and j == i + 1:
+                        cost_matrix[i, j] = 0.01
+                        cost_matrix[j, i] = 0.01
+
+        else:
+            for j in range(i, n):
+                if i != j: 
+                    if i % 2 == 0 and j == i + 1:
+                        cost_matrix[i, j] = 0.01
+                        cost_matrix[j, i] = 0.01
+                    else:
+                        if attr[j].global_intersect == False:
+                            cost_matrix[i, j] = cost_function(points[i], points[j])
+                            cost_matrix[j, i] = cost_function(points[j], points[i])
+                        else:
+                            cost_matrix[i, j] = 1000
+                            cost_matrix[j, i] = 1000  
+    return cost_matrix, paths
+
 
 points_cnt = []
 inter_lines, attr = create_intersect_lines_and_attributes()
-print(attr[:15])
+
 points_cnt.append(len(inter_lines)*2)
+
+points_t = np.array([
+    [0,0],
+    [0,1],
+    [1,0],
+    [1,1]
+     ])
+
+attr_t = [
+    Attrubute(0, True, 0),
+    Attrubute(1, True, 0),
+    Attrubute(2, True, 0),
+    Attrubute(3, True, 0)
+          ]
+
+points = []
+
+for line in inter_lines:
+    points.append((line[0][0], line[0][1]))
+    points.append((line[1][0], line[1][1]))
+points = np.array(points) 
+
+graph_points = points.copy()
+offset = copy.copy(graph_points[0])
+graph_points -= offset
+cost, paths = cost_matr(graph_points, attr, w/2, distance)
+# paths[(0,2)][:,0] += offset[0]
+# paths[(0,2)][:,1] += offset[1]
+# paths[(1,5)][:,0] += offset[0]
+# paths[(1,5)][:,1] += offset[1]
+for _, value in paths.items():
+    value[:, 0] += offset[0]
+    value[:, 1] += offset[1]
+best_route, best_route_cost  = ant_colony(cost, graph_points[0], n_ants=2)
+
+# route_cost = []
+# route = []
+# route.append(best_route)
+# route_cost.append(best_route_cost)
+# print(paths)
 # print(len(inter_lines))
 # print(f'Arg: {np.argmax(points_cnt)}, Max: {np.max(points_cnt)}')
 # print(f'Arg: {np.argmin(points_cnt)}, Max: {np.min(points_cnt)}')
 
 
-
-# p1 = (lines[1].Point2.x, lines[1].Point2.y, np.radians(90))
-# p2 = (lines[3].Point2.x, lines[3].Point2.y, np.radians(-90))
-
+# p1 = (inter_lines[9][1][0], inter_lines[9][1][1], np.radians(90+35))
+# p2 = (inter_lines[11][1][0], inter_lines[11][1][1], np.radians(270+35))
+# p3 = (inter_lines[14][1][0], inter_lines[14][1][1], np.radians(90+35))
+# p4 = (inter_lines[14][0][0], inter_lines[14][0][1], np.radians(90+35))
 # turning_radius = w/2
-# step_size = 0.5
-
+# step_size = 1
+# path, l = calc_dubins(p1, p2, turning_radius, step_size)
+# path1, l1 = calc_dubins(p3, p4, turning_radius, step_size)
 # path, _ = dubins.path_sample(p1, p2, turning_radius, 1)
+# path1, _ = dubins.path_sample(p3, p4, turning_radius, 1)
+
+
 # path = np.array(path)
-# print(path[:, 0])
+# path1 = np.array(path1)
 
 # configurations, _ = path.sample_many(step_size)
 
@@ -220,48 +354,21 @@ points_cnt.append(len(inter_lines)*2)
 
 # print(f'Time: {end-start} s')
 # best_route = route[np.argmin(route_cost)]
-# output_lines = []
-# for i in best_route:
-#     output_lines.append(line_points[i])
+output_points = []
 
-# p = []
-# for i in range(len(test_polygons)):
-#     points = [np.array(i) for i in test_polygons[0]]
-#     p.append(points)
-
-# print(test_polygons)
-# print(list(glob_poly.points))
-# cells=BCD(p, gl2, 10)
-# cellplot=[]
-# for i in range(len(cells)):
-#     cell=Polygon(np.array(cells[i]))
-#     cellplot.append(cell)
-
-# intersect_slices_with_polygons(polygons1, slices)
-# create_sub_poly(glob_poly, polygons1, slices)
-
-
-# intersect_slices = []
-# for i in range(slices.shape[2]):
-#     intersect_slices.append(intersection(glob_poly.points, slices[:, :, i]))
-
-# for i in range(slices.shape[2]):
-#     slices[:, :, i][0] = intersect_slices[i][0]
-#     slices[:, :, i][1] = intersect_slices[i][1]
-
-# line_poly_intersect_merge(polygons, slices)
-
+for i in best_route:
+    output_points.append(points[i])
 
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
-# ax.plot(path[:,0], path[:,1], color = 'b', linewidth = 2)
+
 # for elem in cellplot:
 #     ax.add_patch(patches.Polygon(elem, color = 'purple', fill=False))
 
 for line in inter_lines:
     x = [line[0][0],line[1][0]]
     y = [line[0][1],line[1][1]]
-    ax.plot(x, y, color = 'b', linewidth = 2)
+    ax.plot(x, y, color = 'g', linewidth = 1)
 
 ax.add_patch(patches.Polygon(glob.points, fill=False))
 
@@ -270,15 +377,21 @@ ax.add_patch(patches.Polygon(glob.points, fill=False))
 # for line in lines:
 #     plot_line(ax, line, i_color ='g', width=1)
 
-# for i in range(len(output_lines)-1):
-#     x1 = output_lines[i][0]
-#     y1 = output_lines[i][1]
-#     x2 = output_lines[i+1][0]
-#     y2 = output_lines[i+1][1]
-#     ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
-# print(len(output_lines))
-# ax.scatter(output_lines[0][0], output_lines[0][1], color = 'red', linewidths=5)
-# ax.scatter(output_lines[len(output_lines)-1][0], output_lines[len(output_lines)-1][1], color = 'g', linewidths=5)
+for i in range(len(best_route)-1):
+    curr_index = best_route[i]
+    next_index = best_route[i+1]
+    if (curr_index, next_index) in paths:
+        print(curr_index, next_index)
+        ax.plot(paths[(curr_index, next_index)][:,0], paths[(curr_index, next_index)][:,1], color = 'b', linewidth = 2)
+    else:
+        x1 = points[i][0]
+        y1 = points[i][1]
+        x2 = points[i+1][0]
+        y2 = points[i+1][1]
+        ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
+
+ax.scatter(points[best_route[0]][0], output_points[best_route[0]][1], color = 'g', linewidths=5)
+ax.scatter(points[best_route[len(best_route)-1]][0], points[best_route[len(best_route)-1]][1], color = 'r', linewidths=5)
 
     # ax.scatter(x2, y2, color = 'black', linewidths=1)
 # for i in range(len(line_points)-1):
@@ -330,7 +443,7 @@ for elem in boundaries:
 
 # plot_intersection(ax, intersect_points)
 
-ax.set_xlim([0, 350])
-ax.set_ylim([0, 350])
+ax.set_xlim([-100, 450])
+ax.set_ylim([-100, 450])
 plt.show()
 plt.legend()
