@@ -94,7 +94,7 @@ def line_poly_intersect_merge(polygons, lines):
     # print(lines[0])
     # print(polygons[0])
     points = intersection(polygons[3].points, lines[:,:,0])
-    print(points)
+
 
     for i in range(polygons):
         other_polygons = polygons
@@ -109,7 +109,7 @@ def line_poly_intersect_merge(polygons, lines):
 def intersect_slices_with_polygons(polygons, slices):
     intersect_slices = []
     p = intersection(polygons[0].points, slices[:,:,0])
-    print(p)
+
     for slc in slices:
         intr_points = []
         for poly in polygons:

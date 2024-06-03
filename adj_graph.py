@@ -118,6 +118,6 @@ aco_path, aco_cost = aco.find_shortest_path(
     destination=3,
     num_ants=100,
 )
-print(aco_path, aco_cost)
+
 # plot_graph(G)
 

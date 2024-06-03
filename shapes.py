@@ -11,6 +11,8 @@ import time
 from optimizer import *
 import dubins
 from dataclasses import dataclass
+from a_star import *
+
 
 def shift_line(line, distance):
     # Find the directional vector of the line
@@ -53,51 +55,65 @@ def flatten_list(i_list):
     return output
 
 
-def clockwiseangle_and_distance(point):
-    origin = [175, 175]
-    refvec = [0, 1]
-    # Vector between point and the origin: v = p - o
-    vector = [point[0]-origin[0], point[1]-origin[1]]
-    # Length of vector: ||v||
-    lenvector = math.hypot(vector[0], vector[1])
-    # If length is zero there is no angle
-    if lenvector == 0:
-        return -math.pi, 0
-    # Normalize vector: v/||v||
-    normalized = [vector[0]/lenvector, vector[1]/lenvector]
-    dotprod  = normalized[0]*refvec[0] + normalized[1]*refvec[1]     # x1*x2 + y1*y2
-    diffprod = refvec[1]*normalized[0] - refvec[0]*normalized[1]     # x1*y2 - y1*x2
-    angle = math.atan2(diffprod, dotprod)
-    # Negative angles represent counter-clockwise angles so we need to subtract them 
-    # from 2*pi (360 degrees)
-    if angle < 0:
-        return 2*math.pi+angle, lenvector
-    # I return first the angle because that's the primary sorting criterium
-    # but if two vectors have the same angle then the shorter distance should come first.
-    return angle, lenvector
+def create_grid(area: MyPolygon, obstacle: MyPolygon, step):
+    segment_x = area.max_x - area.min_x
+    segment_y = area.max_y - area.min_y
+    delta = step
+    x = area.min_x
+    y = area.min_y
+    output_list = []
+    for i in range(int(segment_x/delta)):
+        for j in range(int(segment_y/delta)):
+            p = [x, y]
+            y += delta
+            if obstacle.contains(p):
+                output_list.append(p)
+        y = area.min_y
+        x += delta
+    return output_list
+
+def create_walls(area: MyPolygon, obstacle: MyPolygon, step):
+    segment_x = area.max_x - area.min_x
+    segment_y = area.max_y - area.min_y
+    delta = step
+    x = area.min_x
+    y = area.min_y
+    output_list = []
+    for i in range(int(segment_x/delta)):
+        for j in range(int(segment_y/delta)):
+            p = (x, y)
+            y += delta
+            if obstacle.contains([p[0], p[1]]):
+                output_list.append(p)
+        y = area.min_y
+        x += delta
+    return output_list
+
+
+def create_weights(grid, weight):
+    weights = {}
+    for i in range(len(grid)):
+            weights.update({(grid[i][0], grid[i][1]): weight})
+    return weights
 
 glob = glob_poly
-polygons = boundaries
 
-# marked_obstacles = classification(glob_poly, lines, polygons1, step=10, traversal='vertical')
+boundaries = [boundary(poly.points, 20) for poly in polygons1]
+boundaries1 = [boundary(poly.points, 40) for poly in polygons1]
+polygons = boundaries1
 
-# marked_obstacles['d'] = create_slices(glob_poly, marked_obstacles['d'])
-# slices = np.array(create_slices(glob_poly, marked_obstacles['d']))
-slices = np.array(create_slices(glob_poly, polygons))
+
 result, vertices = rc.smallest_rectangle(list(glob.points), rc.compare_area)
 mbr = MyPolygon(vertices)
-
 ref_line = Line(Point(vertices[3][0], vertices[3][1]), Point(vertices[2][0], vertices[2][1]))
-
 ref_line = Line(Point(-100, -100), Point(-100, 400))
-
-# ref_line.print()
 
 unit_ref_line = ref_line.vector/np.linalg.norm(ref_line.vector)
 basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
-w = 130
+w = 80
+
 l = w/np.cos(np.pi/2 - angle)
 
 lines = []
@@ -131,7 +147,6 @@ for i in range(100):
     
     offset += l
 
-print(point_cnt)
 
 def rotate(origin, point, angle):
     """
@@ -206,8 +221,14 @@ def calc_dubins(in_point, out_point, raduis, step_size):
         x1, x2 = path[i][0], path[i+1][0]
         y1, y2 = path[i][1], path[i+1][1]
         l += np.hypot(x2-x1, y2-y1)
-    return path, l
+    return np.array(path), l
 
+def nearest_point(point, polygon):
+    poly_points = polygon.points
+    distances = []
+    for p in poly_points:
+        distances.append(distance(point, p))
+    return copy.copy(poly_points[np.argmin(distances)])
 
 def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.ndarray:
 
@@ -215,6 +236,7 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
     step_size = 3
     cost_matrix = np.zeros((n, n))
     paths = {}
+    # test_path = []
     for i in range(n):
         if attr[i].global_intersect == True:
             for j in range(i, n):
@@ -245,37 +267,68 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
         else:
             for j in range(i, n):
                 if i != j: 
+                    if attr[j].global_intersect == False:
+                        if i % 2 == 0 and j % 2 == 0:
+                            path, length = calc_dubins((points[i][0], points[i][1], np.radians(270+angle)), 
+                                                    (points[j][0], points[j][1], np.radians(90+angle)), radius, step_size)
+                            paths.update({(i,j): path})
+                            cost_matrix[i, j] = length
+                            cost_matrix[j, i] = length
+                        elif i % 2 != 0 and j % 2 != 0:
+                            path, length = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
+                                                    (points[j][0], points[j][1], np.radians(270+angle)), radius, step_size)
+                            paths.update({(i,j): path})
+                            cost_matrix[i, j] = length
+                            cost_matrix[j, i] = length 
+                        elif i % 2 != 0:
+                            nearest1 = nearest_point(points[i], boundaries1[attr[j].polygon_index])
+                            nearest2 = nearest_point(points[j], boundaries1[attr[j].polygon_index])
+                            
+                            middle = (nearest1+nearest2)/2
+                            path1, length1 = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
+                                            (middle[0], middle[1], np.radians(90+angle)), 5, step_size)
+                            second_start_point = [path1[len(path1)-1][0], path1[len(path1)-1][1]]
+                            path2, length2 = calc_dubins((second_start_point[0], second_start_point[1], np.radians(90+angle)), 
+                                            (points[j][0], points[j][1], np.radians(90+angle)), 5, step_size)
+                            test_path = np.concatenate([path1, path2], axis=0)
+                            paths.update({(i,j): test_path})
+                            cost_matrix[i, j] = length1+length2
+                            cost_matrix[j, i] = length1+length2
+                        elif i % 2 == 0:
+                            ...
+                            # nearest1 = nearest_point(points[i], boundaries[attr[j].polygon_index])
+                            # nearest2 = nearest_point(points[j], boundaries[attr[j].polygon_index])
+                            # # if (nearest1-points[i])[1] < 0: #if the nearest point is to the left interseсtion point
+                            # middle = (nearest1+nearest2)/2
+                            # path1, length1 = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
+                            #                 (middle[0], middle[1], np.radians(90+angle)), 5, step_size)
+                            # second_start_point = [path1[len(path1)-1][0], path1[len(path1)-1][1]]
+                            # path2, length2 = calc_dubins((second_start_point[0], second_start_point[1], np.radians(90+angle)), 
+                            #                 (points[j][0], points[j][1], np.radians(90+angle)), 5, step_size)
+                            # test_path = np.concatenate([path1, path2], axis=0)
+                            # paths.update({(i,j): test_path})
+                            # cost_matrix[i, j] = length1+length2
+                            # cost_matrix[j, i] = length1+length2
+                        else:
+                            cost_matrix[i, j] = 1000
+                            cost_matrix[j, i] = 1000  
                     if i % 2 == 0 and j == i + 1:
                         cost_matrix[i, j] = 0.01
                         cost_matrix[j, i] = 0.01
                     else:
                         if attr[j].global_intersect == False:
-                            cost_matrix[i, j] = cost_function(points[i], points[j])
-                            cost_matrix[j, i] = cost_function(points[j], points[i])
+                            cost_matrix[i, j] = 1000
+                            cost_matrix[j, i] = 1000
                         else:
                             cost_matrix[i, j] = 1000
                             cost_matrix[j, i] = 1000  
-    return cost_matrix, paths
+    return cost_matrix, paths, test_path
 
 
 points_cnt = []
 inter_lines, attr = create_intersect_lines_and_attributes()
 
 points_cnt.append(len(inter_lines)*2)
-
-points_t = np.array([
-    [0,0],
-    [0,1],
-    [1,0],
-    [1,1]
-     ])
-
-attr_t = [
-    Attrubute(0, True, 0),
-    Attrubute(1, True, 0),
-    Attrubute(2, True, 0),
-    Attrubute(3, True, 0)
-          ]
 
 points = []
 
@@ -286,17 +339,54 @@ points = np.array(points)
 
 graph_points = points.copy()
 offset = copy.copy(graph_points[0])
-graph_points -= offset
-cost, paths = cost_matr(graph_points, attr, w/2, distance)
+
+cost, paths, test_path = cost_matr(graph_points, attr, w/2, distance)
+
+# print(cost[4][7])
 # paths[(0,2)][:,0] += offset[0]
 # paths[(0,2)][:,1] += offset[1]
 # paths[(1,5)][:,0] += offset[0]
 # paths[(1,5)][:,1] += offset[1]
-for _, value in paths.items():
-    value[:, 0] += offset[0]
-    value[:, 1] += offset[1]
+
+# for key, value in paths.items():
+#     value[:, 0] += offset[0]
+#     value[:, 1] += offset[1]
+graph_points -= offset
 best_route, best_route_cost  = ant_colony(cost, graph_points[0], n_ants=2)
 
+
+
+test_poly = MyPolygon([[0,0], 
+                        [0,50], 
+                        [50,50], 
+                        [50,0]])
+
+obs = MyPolygon([[20,20], 
+                [20,30], 
+                [30,30], 
+                [30,20]])
+step = 1
+walls = create_walls(polygons[0], boundaries[0], step)
+grid = create_grid(polygons[0], polygons[0], step)
+weights = create_weights(grid, step)
+
+start_position = (polygons[0].min_x, polygons[0].min_y)
+w = polygons[0].max_x - polygons[0].min_x
+h = polygons[0].max_y - polygons[0].min_y
+
+weight_grid = GridWithWeights(start_position, w, h)
+
+weight_grid.walls = walls
+weight_grid.weights = weights
+
+start, goal = start_position, (polygons[0].max_x, polygons[0].max_y)
+came_from, cost_so_far = a_star_search(weight_grid, start, goal, euclidean)
+
+rec_path = reconstruct_path(came_from, start=start, goal=(polygons[0].max_x-2, polygons[0].max_y-2))
+
+# print(came_from)
+# test_path[:, 0] += offset[0] 
+# test_path[:, 1] += offset[1] 
 # route_cost = []
 # route = []
 # route.append(best_route)
@@ -306,33 +396,6 @@ best_route, best_route_cost  = ant_colony(cost, graph_points[0], n_ants=2)
 # print(f'Arg: {np.argmax(points_cnt)}, Max: {np.max(points_cnt)}')
 # print(f'Arg: {np.argmin(points_cnt)}, Max: {np.min(points_cnt)}')
 
-
-# p1 = (inter_lines[9][1][0], inter_lines[9][1][1], np.radians(90+35))
-# p2 = (inter_lines[11][1][0], inter_lines[11][1][1], np.radians(270+35))
-# p3 = (inter_lines[14][1][0], inter_lines[14][1][1], np.radians(90+35))
-# p4 = (inter_lines[14][0][0], inter_lines[14][0][1], np.radians(90+35))
-# turning_radius = w/2
-# step_size = 1
-# path, l = calc_dubins(p1, p2, turning_radius, step_size)
-# path1, l1 = calc_dubins(p3, p4, turning_radius, step_size)
-# path, _ = dubins.path_sample(p1, p2, turning_radius, 1)
-# path1, _ = dubins.path_sample(p3, p4, turning_radius, 1)
-
-
-# path = np.array(path)
-# path1 = np.array(path1)
-
-# configurations, _ = path.sample_many(step_size)
-
-# path_iterator = dubins_path(p1, p2, 15)
-# for mode, path, curvature in path_iterator:
-#     # Print the mode, t, and q values for each iteration
-#     print('Mode:', mode)
-#     print('t:', path)
-#     print('q:', curvature)
-#     print()
-# lines = np.array(lines)
-# lines = np.roll(lines, 0)
 
 # route_cost = []
 # route = []
@@ -376,13 +439,14 @@ ax.add_patch(patches.Polygon(glob.points, fill=False))
 # plot_line(ax, ref_line, i_color ='r', width=3)
 # for line in lines:
 #     plot_line(ax, line, i_color ='g', width=1)
-
+print(best_route)
 for i in range(len(best_route)-1):
     curr_index = best_route[i]
     next_index = best_route[i+1]
     if (curr_index, next_index) in paths:
-        print(curr_index, next_index)
         ax.plot(paths[(curr_index, next_index)][:,0], paths[(curr_index, next_index)][:,1], color = 'b', linewidth = 2)
+    elif (next_index, curr_index) in paths:
+        ax.plot(paths[(next_index, curr_index)][:,0], paths[(next_index, curr_index)][:,1], color = 'b', linewidth = 2)
     else:
         x1 = points[i][0]
         y1 = points[i][1]
@@ -393,16 +457,30 @@ for i in range(len(best_route)-1):
 ax.scatter(points[best_route[0]][0], output_points[best_route[0]][1], color = 'g', linewidths=5)
 ax.scatter(points[best_route[len(best_route)-1]][0], points[best_route[len(best_route)-1]][1], color = 'r', linewidths=5)
 
-    # ax.scatter(x2, y2, color = 'black', linewidths=1)
-# for i in range(len(line_points)-1):
-#     x1 = line_points[i][0]
-#     y1 = line_points[i][1]
-#     x2 = line_points[i+1][0]
-#     y2 = line_points[i+1][1]
-#     ax.scatter(x1, y1, color = 'black', linewidths=1)
-#     ax.scatter(x2, y2, color = 'black', linewidths=1)
-#     ax.annotate(str(i), (x1, y1))
-#     ax.annotate(str(i+1), (x2, y2))
+# ax.plot(test_path[:,0], test_path[:,1], color = 'r', linewidth = 2)
+# ax.plot(test_path[:,0], test_path[:,1], color = 'r', linewidth = 2)
+# for path in test_path:
+# ax.plot(test_path[:,0], test_path[:,1], color = 'r', linewidth = 2)
+for i in range(len(points)-1):
+    x1 = points[i][0]
+    y1 = points[i][1]
+    x2 = points[i+1][0]
+    y2 = points[i+1][1]
+    ax.scatter(x1, y1, color = 'black', linewidths=1)
+    ax.scatter(x2, y2, color = 'black', linewidths=1)
+    ax.annotate(str(i), (x1, y1))
+    ax.annotate(str(i+1), (x2, y2))
+
+# for point in grid:
+#     ax.scatter(point[0], point[1], color = 'r', linewidths=1)
+
+# for point in walls:
+#     ax.scatter(point[0], point[1], color = 'b', linewidths=1)
+
+for i in range(0, len(rec_path), 10):
+    ax.scatter(rec_path[i][0], rec_path[i][1], color = 'g', linewidths=1)
+
+
 # fig = plt.figure(figsize=(8, 8))
 # ax1 = fig.add_subplot()
 
@@ -416,6 +494,11 @@ for elem in polygons1:
 
 for elem in boundaries:
     ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=False))
+
+for elem in boundaries1:
+    ax.add_patch(patches.Polygon(elem.points, color = 'black', fill=False))
+
+
 
 # for elem in marked_obstacles['a']:
 #     ax.add_patch(patches.Polygon(elem.points, color = 'g', fill=True))

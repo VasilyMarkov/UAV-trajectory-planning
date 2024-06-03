@@ -1,5 +1,9 @@
 import numpy as np
 import shapely.geometry as sg
+import sys
+
+def distance(point1: np.ndarray, point2: np.ndarray) -> float:
+    return np.sqrt(np.sum((point1 - point2) ** 2))
 
 class MyPolygon:
     def __init__(self, points):
@@ -9,7 +13,6 @@ class MyPolygon:
         self._update()
 
     def print(self):
-        # print(f'min x:{self.min_x}, max x:{self.max_x},  min y:{self.min_y},  max y:{self.max_y}')
         print(self.points)
 
     def _update(self):   
@@ -20,6 +23,7 @@ class MyPolygon:
         self.height = self.max_y-self.min_y
         self.width = self.max_x-self.min_x
         self.mass_center = (np.mean(self.points[:, 0]), np.mean(self.points[:, 1]))
+        self.radius = np.max([distance(point, self.mass_center) for point in self.points])
         self.slice_l = np.array([[self.min_x, 0],[self.min_x, 0]])
         self.slice_r = np.array([[self.max_x, 0],[self.max_x, 0]])
 
@@ -31,6 +35,60 @@ class MyPolygon:
         self.points[:, 1] += y
         self._update()
 
+    @property
+    def edges(self):
+        ''' Returns a list of tuples that each contain 2 points of an edge '''
+        edge_list = []
+        for i,p in enumerate(self.points):
+            p1 = p
+            p2 = self.points[(i+1) % len(self.points)]
+            edge_list.append((p1,p2))
+
+        return edge_list
+    
+    def contains(self, point: list):
+        # _huge is used to act as infinity if we divide by 0
+        _huge = sys.float_info.max
+        # _eps is used to make sure points are not on the same line as vertexes
+        _eps = 0.00001
+
+        # We start on the outside of the polygon
+        inside = False
+        for edge in self.edges:
+            # Make sure A is the lower point of the edge
+            A, B = edge[0], edge[1]
+            if A[1] > B[1]:
+                A, B = B, A
+
+            # Make sure point is not at same height as vertex
+            if point[1] == A[1] or point[1] == B[1]:
+                point[1] += _eps
+
+            if (point[1] > B[1] or point[1] < A[1] or point[0] > max(A[0], B[0])):
+                # The horizontal ray does not intersect with the edge
+                continue
+
+            if point[0] < min(A[0], B[0]): # The ray intersects with the edge
+                inside = not inside
+                continue
+
+            try:
+                m_edge = (B[1] - A[1]) / (B[0] - A[0])
+            except ZeroDivisionError:
+                m_edge = _huge
+
+            try:
+                m_point = (point[1] - A[1]) / (point[0] - A[0])
+            except ZeroDivisionError:
+                m_point = _huge
+
+            if m_point >= m_edge:
+                # The ray intersects with the edge
+                inside = not inside
+                continue
+
+        return inside
+    
 glob_poly = MyPolygon([[0,0],
                        [0,150],  
                        [20,300], 
@@ -121,7 +179,7 @@ def boundary(poly, width):
     boundary_coords = list(boundary.boundary.coords)
     return MyPolygon(boundary_coords[:-1])
 
-boundaries = [boundary(poly.points, 30) for poly in polygons1]
+
 
 poly1 = [[50,100], 
         [50,150], 
@@ -162,5 +220,5 @@ gl2 = [[50,0],
     [300,200], 
     [100,0]]
 
-# test_polygons = [poly1, poly3, poly2] 
-test_polygons = [poly2] 
+test_polygons = [poly1, poly3, poly2] 
+# test_polygons = [poly2] 
