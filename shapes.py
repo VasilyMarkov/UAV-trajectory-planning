@@ -12,7 +12,11 @@ from optimizer import *
 import dubins
 from dataclasses import dataclass
 from a_star import *
-
+import sys
+import os
+custom_path = os.path.abspath("dubins")
+sys.path.append(custom_path)
+from hybrid_astar import *
 
 def shift_line(line, distance):
     # Find the directional vector of the line
@@ -98,8 +102,9 @@ def create_weights(grid, weight):
 
 glob = glob_poly
 
-boundaries = [boundary(poly.points, 20) for poly in polygons1]
-boundaries1 = [boundary(poly.points, 40) for poly in polygons1]
+boundaries = [boundary(poly.points, 2) for poly in polygons1]
+boundaries1 = [boundary(poly.points, 30) for poly in polygons1]
+boundaries2 = [boundary(poly.points, 50) for poly in polygons1]
 polygons = boundaries1
 
 
@@ -112,7 +117,7 @@ unit_ref_line = ref_line.vector/np.linalg.norm(ref_line.vector)
 basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
-w = 80
+w = 25
 
 l = w/np.cos(np.pi/2 - angle)
 
@@ -230,6 +235,54 @@ def nearest_point(point, polygon):
         distances.append(distance(point, p))
     return copy.copy(poly_points[np.argmin(distances)])
 
+
+def avoid_obs(start_position, end_position, angle):
+    start_pos_obs_x = boundaries2[0].min_x
+    start_pos_obs_y = boundaries2[0].min_y
+    w = boundaries2[0].max_x - boundaries2[0].min_x
+    h = boundaries2[0].max_y - boundaries2[0].min_y
+    obs = [
+        [boundaries[0].min_x-start_pos_obs_x, 
+        boundaries[0].min_y-start_pos_obs_y,
+        boundaries[0].max_x-boundaries[0].min_x, 
+        boundaries[0].max_y-boundaries[0].min_y
+        ]
+        ]
+
+    factor = (h/9)+1
+
+# obs = [
+#     [1.5, 1.5, 5, 5]
+#     ]
+
+    obs[0][0] /= factor        
+    obs[0][1] /= factor        
+    obs[0][2] /= factor        
+    obs[0][3] /= factor        
+    start_pos = [start_position[0], start_position[1], angle]
+    end_pos = [end_position[0], end_position[1], angle]
+    # print(start_pos)
+    # print(end_pos)
+    start_pos[0] -= start_pos_obs_x
+    start_pos[1] -= start_pos_obs_y
+    start_pos[0] /= factor
+    start_pos[1] /= factor
+    end_pos[0] -= start_pos_obs_x
+    end_pos[1] -= start_pos_obs_y
+    end_pos[0] /= factor
+    end_pos[1] /= factor
+    
+    # if start_pos[1] == 0.0:
+    #     start_pos[1] = 1
+    # if end_pos[1] == 0.0:
+    #     end_pos[1] = 1
+
+
+    rec_path, cost = get_path(start_pos, end_pos, obs)
+    new_path = [[i.pos[0]*factor + start_pos_obs_x, i.pos[1]*factor + start_pos_obs_y, i.pos[2]] for i in rec_path]
+    return np.array(new_path), cost*factor
+
+
 def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.ndarray:
 
     n = len(points)
@@ -272,6 +325,7 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
                             path, length = calc_dubins((points[i][0], points[i][1], np.radians(270+angle)), 
                                                     (points[j][0], points[j][1], np.radians(90+angle)), radius, step_size)
                             paths.update({(i,j): path})
+                            
                             cost_matrix[i, j] = length
                             cost_matrix[j, i] = length
                         elif i % 2 != 0 and j % 2 != 0:
@@ -281,37 +335,31 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
                             cost_matrix[i, j] = length
                             cost_matrix[j, i] = length 
                         elif i % 2 != 0:
-                            nearest1 = nearest_point(points[i], boundaries1[attr[j].polygon_index])
-                            nearest2 = nearest_point(points[j], boundaries1[attr[j].polygon_index])
+                            path, cost = avoid_obs(points[i], points[j], np.radians(90+angle))
+                            paths.update({(i,j): path})
+                            cost_matrix[i, j] = cost
+                            cost_matrix[j, i] = cost  
+                        #     nearest1 = nearest_point(points[i], boundaries1[attr[j].polygon_index])
+                        #     nearest2 = nearest_point(points[j], boundaries1[attr[j].polygon_index])
                             
-                            middle = (nearest1+nearest2)/2
-                            path1, length1 = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
-                                            (middle[0], middle[1], np.radians(90+angle)), 5, step_size)
-                            second_start_point = [path1[len(path1)-1][0], path1[len(path1)-1][1]]
-                            path2, length2 = calc_dubins((second_start_point[0], second_start_point[1], np.radians(90+angle)), 
-                                            (points[j][0], points[j][1], np.radians(90+angle)), 5, step_size)
-                            test_path = np.concatenate([path1, path2], axis=0)
-                            paths.update({(i,j): test_path})
-                            cost_matrix[i, j] = length1+length2
-                            cost_matrix[j, i] = length1+length2
+                        #     middle = (nearest1+nearest2)/2
+                        #     path1, length1 = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
+                        #                     (middle[0], middle[1], np.radians(90+angle)), 5, step_size)
+                        #     second_start_point = [path1[len(path1)-1][0], path1[len(path1)-1][1]]
+                        #     path2, length2 = calc_dubins((second_start_point[0], second_start_point[1], np.radians(90+angle)), 
+                        #                     (points[j][0], points[j][1], np.radians(90+angle)), 5, step_size)
+                        #     test_path = np.concatenate([path1, path2], axis=0)
+                        #     paths.update({(i,j): test_path})
+                        #     cost_matrix[i, j] = length1+length2
+                        #     cost_matrix[j, i] = length1+length2
                         elif i % 2 == 0:
-                            ...
-                            # nearest1 = nearest_point(points[i], boundaries[attr[j].polygon_index])
-                            # nearest2 = nearest_point(points[j], boundaries[attr[j].polygon_index])
-                            # # if (nearest1-points[i])[1] < 0: #if the nearest point is to the left interseсtion point
-                            # middle = (nearest1+nearest2)/2
-                            # path1, length1 = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
-                            #                 (middle[0], middle[1], np.radians(90+angle)), 5, step_size)
-                            # second_start_point = [path1[len(path1)-1][0], path1[len(path1)-1][1]]
-                            # path2, length2 = calc_dubins((second_start_point[0], second_start_point[1], np.radians(90+angle)), 
-                            #                 (points[j][0], points[j][1], np.radians(90+angle)), 5, step_size)
-                            # test_path = np.concatenate([path1, path2], axis=0)
-                            # paths.update({(i,j): test_path})
-                            # cost_matrix[i, j] = length1+length2
-                            # cost_matrix[j, i] = length1+length2
-                        else:
-                            cost_matrix[i, j] = 1000
-                            cost_matrix[j, i] = 1000  
+                            print(i, j)
+                            path, cost = avoid_obs(points[i], points[j], np.radians(270+angle))
+                            paths.update({(i,j): path})
+                            cost_matrix[i, j] = cost
+                            cost_matrix[j, i] = cost 
+                        
+
                     if i % 2 == 0 and j == i + 1:
                         cost_matrix[i, j] = 0.01
                         cost_matrix[j, i] = 0.01
@@ -322,7 +370,7 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
                         else:
                             cost_matrix[i, j] = 1000
                             cost_matrix[j, i] = 1000  
-    return cost_matrix, paths, test_path
+    return cost_matrix, paths
 
 
 points_cnt = []
@@ -340,7 +388,7 @@ points = np.array(points)
 graph_points = points.copy()
 offset = copy.copy(graph_points[0])
 
-cost, paths, test_path = cost_matr(graph_points, attr, w/2, distance)
+cost, paths = cost_matr(graph_points, attr, w/2, distance)
 
 # print(cost[4][7])
 # paths[(0,2)][:,0] += offset[0]
@@ -356,33 +404,35 @@ best_route, best_route_cost  = ant_colony(cost, graph_points[0], n_ants=2)
 
 
 
-test_poly = MyPolygon([[0,0], 
-                        [0,50], 
-                        [50,50], 
-                        [50,0]])
+# test_poly = MyPolygon([[0,0], 
+#                         [0,50], 
+#                         [50,50], 
+#                         [50,0]])
 
-obs = MyPolygon([[20,20], 
-                [20,30], 
-                [30,30], 
-                [30,20]])
-step = 1
-walls = create_walls(polygons[0], boundaries[0], step)
-grid = create_grid(polygons[0], polygons[0], step)
-weights = create_weights(grid, step)
+# obs = MyPolygon([[20,20], 
+#                 [20,30], 
+#                 [30,30], 
+#                 [30,20]])
+# step = 1
+# walls = create_walls(polygons[0], boundaries[0], step)
+# grid = create_grid(polygons[0], polygons[0], step)
+# weights = create_weights(grid, step)
 
-start_position = (polygons[0].min_x, polygons[0].min_y)
-w = polygons[0].max_x - polygons[0].min_x
-h = polygons[0].max_y - polygons[0].min_y
+# start_position = (polygons[0].min_x, polygons[0].min_y)
+# w = polygons[0].max_x - polygons[0].min_x
+# h = polygons[0].max_y - polygons[0].min_y
 
-weight_grid = GridWithWeights(start_position, w, h)
+# weight_grid = GridWithWeights(start_position, w, h)
 
-weight_grid.walls = walls
-weight_grid.weights = weights
+# weight_grid.walls = walls
+# weight_grid.weights = weights
 
-start, goal = start_position, (polygons[0].max_x, polygons[0].max_y)
-came_from, cost_so_far = a_star_search(weight_grid, start, goal, euclidean)
+# start, goal = start_position, (polygons[0].max_x, polygons[0].max_y)
+# came_from, cost_so_far = a_star_search(weight_grid, start, goal, euclidean)
 
-rec_path = reconstruct_path(came_from, start=start, goal=(polygons[0].max_x-2, polygons[0].max_y-2))
+# rec_path = reconstruct_path(came_from, start=start, goal=(polygons[0].max_x-2, polygons[0].max_y-2))
+
+
 
 # print(came_from)
 # test_path[:, 0] += offset[0] 
@@ -477,9 +527,12 @@ for i in range(len(points)-1):
 # for point in walls:
 #     ax.scatter(point[0], point[1], color = 'b', linewidths=1)
 
-for i in range(0, len(rec_path), 10):
-    ax.scatter(rec_path[i][0], rec_path[i][1], color = 'g', linewidths=1)
-
+# for i in range(len(new_path)-1):
+#     x1 = new_path[i][0]
+#     y1 = new_path[i][1]
+#     x2 = new_path[i+1][0]
+#     y2 = new_path[i+1][1]
+#     ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
 
 # fig = plt.figure(figsize=(8, 8))
 # ax1 = fig.add_subplot()
