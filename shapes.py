@@ -118,6 +118,7 @@ basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
 w = 25
+# w = 50
 
 l = w/np.cos(np.pi/2 - angle)
 
@@ -251,17 +252,12 @@ def avoid_obs(start_position, end_position, angle):
 
     factor = (h/9)+1
 
-# obs = [
-#     [1.5, 1.5, 5, 5]
-#     ]
-
     obs[0][0] /= factor        
     obs[0][1] /= factor        
     obs[0][2] /= factor        
     obs[0][3] /= factor        
     start_pos = [start_position[0], start_position[1], angle]
     end_pos = [end_position[0], end_position[1], angle]
-    # print(start_pos)
     # print(end_pos)
     start_pos[0] -= start_pos_obs_x
     start_pos[1] -= start_pos_obs_y
@@ -272,12 +268,6 @@ def avoid_obs(start_position, end_position, angle):
     end_pos[0] /= factor
     end_pos[1] /= factor
     
-    # if start_pos[1] == 0.0:
-    #     start_pos[1] = 1
-    # if end_pos[1] == 0.0:
-    #     end_pos[1] = 1
-
-
     rec_path, cost = get_path(start_pos, end_pos, obs)
     new_path = [[i.pos[0]*factor + start_pos_obs_x, i.pos[1]*factor + start_pos_obs_y, i.pos[2]] for i in rec_path]
     return np.array(new_path), cost*factor
@@ -289,7 +279,7 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
     step_size = 3
     cost_matrix = np.zeros((n, n))
     paths = {}
-    # test_path = []
+
     for i in range(n):
         if attr[i].global_intersect == True:
             for j in range(i, n):
@@ -335,41 +325,25 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
                             cost_matrix[i, j] = length
                             cost_matrix[j, i] = length 
                         elif i % 2 != 0:
+                            print(i,j)
                             path, cost = avoid_obs(points[i], points[j], np.radians(90+angle))
                             paths.update({(i,j): path})
                             cost_matrix[i, j] = cost
-                            cost_matrix[j, i] = cost  
-                        #     nearest1 = nearest_point(points[i], boundaries1[attr[j].polygon_index])
-                        #     nearest2 = nearest_point(points[j], boundaries1[attr[j].polygon_index])
-                            
-                        #     middle = (nearest1+nearest2)/2
-                        #     path1, length1 = calc_dubins((points[i][0], points[i][1], np.radians(90+angle)), 
-                        #                     (middle[0], middle[1], np.radians(90+angle)), 5, step_size)
-                        #     second_start_point = [path1[len(path1)-1][0], path1[len(path1)-1][1]]
-                        #     path2, length2 = calc_dubins((second_start_point[0], second_start_point[1], np.radians(90+angle)), 
-                        #                     (points[j][0], points[j][1], np.radians(90+angle)), 5, step_size)
-                        #     test_path = np.concatenate([path1, path2], axis=0)
-                        #     paths.update({(i,j): test_path})
-                        #     cost_matrix[i, j] = length1+length2
-                        #     cost_matrix[j, i] = length1+length2
+                            cost_matrix[j, i] = cost 
+
                         elif i % 2 == 0:
-                            print(i, j)
+                            print(i,j)
                             path, cost = avoid_obs(points[i], points[j], np.radians(270+angle))
                             paths.update({(i,j): path})
                             cost_matrix[i, j] = cost
                             cost_matrix[j, i] = cost 
-                        
-
-                    if i % 2 == 0 and j == i + 1:
+                    elif i % 2 == 0 and j == i + 1:
                         cost_matrix[i, j] = 0.01
                         cost_matrix[j, i] = 0.01
                     else:
-                        if attr[j].global_intersect == False:
-                            cost_matrix[i, j] = 1000
-                            cost_matrix[j, i] = 1000
-                        else:
-                            cost_matrix[i, j] = 1000
-                            cost_matrix[j, i] = 1000  
+                        print(i, j)
+                        cost_matrix[i, j] = 1000
+                        cost_matrix[j, i] = 1000  
     return cost_matrix, paths
 
 
@@ -390,7 +364,7 @@ offset = copy.copy(graph_points[0])
 
 cost, paths = cost_matr(graph_points, attr, w/2, distance)
 
-# print(cost[4][7])
+print(cost[9][10])
 # paths[(0,2)][:,0] += offset[0]
 # paths[(0,2)][:,1] += offset[1]
 # paths[(1,5)][:,0] += offset[0]
