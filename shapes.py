@@ -7,7 +7,6 @@ from adj_graph import *
 import rotating_calipers as rc
 import copy
 import math
-import time
 from optimizer import *
 import dubins
 from dataclasses import dataclass
@@ -99,6 +98,8 @@ def create_weights(grid, weight):
     for i in range(len(grid)):
             weights.update({(grid[i][0], grid[i][1]): weight})
     return weights
+import time
+start = time.time()
 
 glob = glob_poly
 
@@ -118,7 +119,6 @@ basis_vector = np.array([1,0])
 dot = np.dot(unit_ref_line, basis_vector)
 angle = np.arccos(dot)
 w = 25
-# w = 50
 
 l = w/np.cos(np.pi/2 - angle)
 
@@ -174,7 +174,7 @@ class Attrubute:
     polygon_index: int
 
 
-angle = 1
+angle = 20
 def create_intersect_lines_and_attributes():
     delta = -100
     center = (175,175)
@@ -325,14 +325,12 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
                             cost_matrix[i, j] = length
                             cost_matrix[j, i] = length 
                         elif i % 2 != 0:
-                            print(i,j)
                             path, cost = avoid_obs(points[i], points[j], np.radians(90+angle))
                             paths.update({(i,j): path})
                             cost_matrix[i, j] = cost
                             cost_matrix[j, i] = cost 
 
                         elif i % 2 == 0:
-                            print(i,j)
                             path, cost = avoid_obs(points[i], points[j], np.radians(270+angle))
                             paths.update({(i,j): path})
                             cost_matrix[i, j] = cost
@@ -341,7 +339,6 @@ def cost_matr(points, attr, radius, cost_function: Callable = distance) -> np.nd
                         cost_matrix[i, j] = 0.01
                         cost_matrix[j, i] = 0.01
                     else:
-                        print(i, j)
                         cost_matrix[i, j] = 1000
                         cost_matrix[j, i] = 1000  
     return cost_matrix, paths
@@ -363,8 +360,6 @@ graph_points = points.copy()
 offset = copy.copy(graph_points[0])
 
 cost, paths = cost_matr(graph_points, attr, w/2, distance)
-
-print(cost[9][10])
 # paths[(0,2)][:,0] += offset[0]
 # paths[(0,2)][:,1] += offset[1]
 # paths[(1,5)][:,0] += offset[0]
@@ -376,7 +371,8 @@ print(cost[9][10])
 graph_points -= offset
 best_route, best_route_cost  = ant_colony(cost, graph_points[0], n_ants=2)
 
-
+end = time.time()
+print(f'Time: {end-start} s')
 
 # test_poly = MyPolygon([[0,0], 
 #                         [0,50], 
@@ -468,15 +464,15 @@ for i in range(len(best_route)-1):
     curr_index = best_route[i]
     next_index = best_route[i+1]
     if (curr_index, next_index) in paths:
-        ax.plot(paths[(curr_index, next_index)][:,0], paths[(curr_index, next_index)][:,1], color = 'b', linewidth = 2)
+        ax.plot(paths[(curr_index, next_index)][:,0], paths[(curr_index, next_index)][:,1], color = '#43A3D2', linewidth = 2)
     elif (next_index, curr_index) in paths:
-        ax.plot(paths[(next_index, curr_index)][:,0], paths[(next_index, curr_index)][:,1], color = 'b', linewidth = 2)
+        ax.plot(paths[(next_index, curr_index)][:,0], paths[(next_index, curr_index)][:,1], color = '#43A3D2', linewidth = 2)
     else:
         x1 = points[i][0]
         y1 = points[i][1]
         x2 = points[i+1][0]
         y2 = points[i+1][1]
-        ax.plot([x1,x2], [y1,y2], color = 'b', linewidth = 2)
+        ax.plot([x1,x2], [y1,y2], color = '#43A3D2', linewidth = 2)
 
 ax.scatter(points[best_route[0]][0], output_points[best_route[0]][1], color = 'g', linewidths=5)
 ax.scatter(points[best_route[len(best_route)-1]][0], points[best_route[len(best_route)-1]][1], color = 'r', linewidths=5)
@@ -485,7 +481,7 @@ ax.scatter(points[best_route[len(best_route)-1]][0], points[best_route[len(best_
 # ax.plot(test_path[:,0], test_path[:,1], color = 'r', linewidth = 2)
 # for path in test_path:
 # ax.plot(test_path[:,0], test_path[:,1], color = 'r', linewidth = 2)
-for i in range(len(points)-1):
+for i in range(1,len(points)-2):
     x1 = points[i][0]
     y1 = points[i][1]
     x2 = points[i+1][0]
@@ -494,6 +490,10 @@ for i in range(len(points)-1):
     ax.scatter(x2, y2, color = 'black', linewidths=1)
     ax.annotate(str(i), (x1, y1))
     ax.annotate(str(i+1), (x2, y2))
+
+ax.annotate("Start", (points[0][0], points[0][1]))
+ax.annotate("End", (points[len(points)-1][0], points[len(points)-1][1]))
+# ax.annotate(str(i+1), (x2, y2))
 
 # for point in grid:
 #     ax.scatter(point[0], point[1], color = 'r', linewidths=1)
@@ -517,10 +517,10 @@ for i in range(len(points)-1):
 # plot_graph(graph)
 
 for elem in polygons1:
-    ax.add_patch(patches.Polygon(elem.points, color = 'purple', fill=True))
+    ax.add_patch(patches.Polygon(elem.points, color = '#F08686', fill=True))
 
-for elem in boundaries:
-    ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=False))
+# for elem in boundaries:
+#     ax.add_patch(patches.Polygon(elem.points, color = 'r', fill=False))
 
 for elem in boundaries1:
     ax.add_patch(patches.Polygon(elem.points, color = 'black', fill=False))
